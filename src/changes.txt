@@ -1,0 +1,23 @@
+string_equalsignorecase / string_comparetoignorecase
+ - tolower actually takes single characters as input; not strings.
+ - normally I would use strcasecmp, but that is not standard and you appear to be using Windows.  I just added a caseless strcmp as a helper function is stringobj.c
+
+getsa
+ - use string_concat_c instead of string_concat. getchar returns a single char.  The address of that pointer is a type char*, but it should not be assumed NULL terminated.  string_concat uses strlen which assumes your char* is NULL terminated.
+
+string_concat and string_concat_c
+ - both + 1 on realloc check
+ - realloc actually takes a *new* size as an argument, not an additional size.  So all you want to do is add to allocatedlength, and pass that to realloc.
+ - commented memset in string_concat
+
+string_init
+ - initialize length and set the first char to '\0'
+
+string_substring
+ - NULL terminate tempString
+
+interpreter.c:56
+ - sizeof(ReadStatus*) -> sizeof(ReadStatus)
+
+main
+ - I added argc and argv so if you call your program with an argument it will read the argument file instead of hello world

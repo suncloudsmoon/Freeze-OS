@@ -26,13 +26,28 @@
 
 #include "interpreter.h"
 
-int main()
+int main(int argc, char** argv)
 {
-    FILE *test = fopen("experiments\\Hello World.freeze", "r");
+    FILE *test = stdin;
+
+    /* If we were given an argument */
+    if (argc > 1) {
+        test = fopen(argv[1], "r");
+    } else {
+        /* Ideally, this else block should go */
+        test = fopen("experiments\\Hello World.freeze", "r");
+    }
+
+    if (test == NULL) {
+        perror(argv[1]);
+        exit(EXIT_FAILURE);
+    }
 
     ignition(test);
 
-    fclose(test);
+    if (test != stdin) {
+        fclose(test);
+    }
 
     return 0;
 }

@@ -40,16 +40,33 @@ string_t* string_init() {
     string->string = (char *) calloc(10, sizeof(char));
     string->allocatedLength = 10;
 
+    string->string[0] = '\0';
+    string->length = 0;
+
     return string;
 }
 
 char string_charat(int index, string_t *story) {
     // Add safety if accessed out of bounds, return NULL
     if (index >= story->length || index < 0) {
-        return NULL;
+        return '\0';
     } else {
         return story->string[index];
     }
+}
+
+// https://code.woboq.org/userspace/glibc/string/strcasecmp.c.html
+int caseless_strcmp(const char *s1, const char *s2)
+{
+    const unsigned char *p1 = (const unsigned char *) s1;
+    const unsigned char *p2 = (const unsigned char *) s2;
+    int result;
+    if (p1 == p2)
+        return 0;
+    while ((result = tolower(*p1) - tolower(*p2++)) == 0)
+        if (*p1++ == '\0')
+            break;
+    return result;
 }
 
 int string_compareto(string_t *main, string_t *second) {
@@ -57,19 +74,17 @@ int string_compareto(string_t *main, string_t *second) {
 }
 
 int string_comparetoignorecase(string_t *main, string_t *second) {
-    return strcmp(tolower(main->string), tolower(second->string));
+    return caseless_strcmp(main->string, second->string) == 0;
 }
 
 // 5 + 1 = 6; allocated 1
 void string_concat(char *text, string_t *story) {
     int textLength = strlen(text);
 
-    if (story->length + textLength > story->allocatedLength) {
-        int numAdd = (story->length + textLength) - story->allocatedLength + 10;
-        growMem(numAdd, story);
-        memset(story->string, 0, numAdd * sizeof(char));
-
-        story->allocatedLength += numAdd;
+    if (story->length + textLength + 1 > story->allocatedLength) {
+      story->allocatedLength += (story->length + textLength) + 10;
+      growMem(story->allocatedLength, story);
+      // memset(story->string, 0, numAdd * sizeof(char));
     }
     strcat(story->string, text);
     story->length += textLength;
@@ -77,11 +92,9 @@ void string_concat(char *text, string_t *story) {
 
 void string_concat_c(char letter, string_t *story) {
 
-    if (story->length + 1 > story->allocatedLength) {
-        int numAdd = (story->length + 1) - story->allocatedLength + 10;
-        growMem(numAdd, story);
-        //memset(story->string, 0, numAdd);
-        story->allocatedLength += numAdd;
+    if (story->length + 2 > story->allocatedLength) {
+      story->allocatedLength += story->length + 10;
+      growMem(story->allocatedLength, story);
     }
 
     // Convert the char to string temporarly
@@ -98,7 +111,7 @@ bool string_contains(char *s, string_t *story) {
 }
 
 bool string_equalsignorecase(char *one, string_t *story) {
-    return strcmp(tolower(one), tolower(story->string)) == 0;
+    return caseless_strcmp(one, story->string) == 0;
 }
 
 string_t* string_copyvalueof(char *text) {
@@ -110,7 +123,7 @@ string_t* string_copyvalueof(char *text) {
 
 // Later implementation
 bool string_endswith(char *suffix, string_t *story) {
-
+        return false;
 }
 
 // First occurrence of the :
@@ -165,6 +178,7 @@ string_t* string_substring(int beginIndex, int endIndex, string_t *story) {
         tempString[tempCounter] = string_charat(i, story);
         tempCounter++;
     }
+    tempString[tempCounter] = '\0';
     string_concat(tempString, newString);
 
     return newString;
@@ -197,12 +211,13 @@ void string_free(string_t *story) {
  * gets() specially made for the string object
  */
 void getsa(string_t *story) {
-    char input;
-    while (input = getchar()) {
+    int input;
+    while (true) {
+        input = getchar();
         if (input == '\n' || input == '\0' || input == EOF) {
             break;
         } else {
-            string_concat(&input, story);
+            string_concat_c(input, story);
         }
     }
 }

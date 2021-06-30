@@ -53,7 +53,7 @@ void ignition(FILE *stuff) {
 
     ReadStatus *status;
     do {
-        status = (ReadStatus *) calloc(1, sizeof(ReadStatus*));
+        status = (ReadStatus *) calloc(1, sizeof(ReadStatus));
         status->line = string_init();
 
         readLine(vm->location, status);

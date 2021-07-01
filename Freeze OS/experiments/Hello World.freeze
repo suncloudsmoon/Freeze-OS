@@ -1,0 +1,2 @@
+print: "Hello, World"
+write: "C:\\Users\\super\\Desktop\\Hello World.txt", "Hello, World!"

@@ -46,6 +46,7 @@ static bool interpret(LineInfo *info, VirtualMachine *vm);
 static void restline_add(string_t *data, LineInfo *info);
 static void interpret_print(LineInfo *restLine);
 static void interpret_write(LineInfo *info);
+static void interpret_print_special(LineInfo *info);
 static void lineInterpret(VirtualMachine *vm);
 static void interpret_for(LineInfo *info, VirtualMachine *vm);
 static string_t* removeQuotes(string_t *data);
@@ -134,7 +135,7 @@ static LineInfo* splitIntoTokens(string_t *line, VirtualMachine *vm) {
 	int colonIndex = string_indexof(':', line);
 
 // Debug
-	printf("\nColon Index: %d\n", colonIndex);
+	//printf("\nColon Index: %d\n", colonIndex);
 
 // Safety First!
 	if (colonIndex == 0) {
@@ -188,67 +189,33 @@ static bool interpret(LineInfo *info, VirtualMachine *vm) {
 			info->token)) {
 		interpret_for(info, vm);
 
-		vm->vars->lines = (string_t**) calloc(10, sizeof(string_t*));
-		vm->vars->lineLength = 0;
-		vm->vars->allocatedLineLength = 10;
-
-		// Returns true when end is detected
-		bool interpretStatus = false;
-
-		int readStatus = 0;
-		do {
-			string_t *line = string_init();
-			readStatus = readLine(vm->location, line);
-
-			if (vm->vars->lineLength + 1 > vm->vars->allocatedLineLength) {
-				vm->vars->lines = (string_t**) realloc(vm->vars->lines,
-						10 * sizeof(string_t*));
-				vm->vars->allocatedLineLength += 10;
-			}
-			vm->vars->lineLength++;
-			vm->vars->lines[vm->vars->lineLength - 1] = line;
-
-			LineInfo *info = splitIntoTokens(line, vm);
-
-			interpretStatus = interpret(info, vm);
-
-			lineinfo_free(info);
-
-			printf("Interpreting Lines for FOR LOOP!\n");
-		} while (readStatus != EOF && !interpretStatus);
-
-		// Reading from existing lines
-		if (vm->vars->condition == '<') {
-			for (long i = vm->vars->i; i < vm->vars->conditionArgument;
-					i += vm->vars->increment) {
-				lineInterpret(vm);
-			}
-		} else if (vm->vars->condition == '>') {
-			for (long i = vm->vars->i; i > vm->vars->conditionArgument;
-					i += vm->vars->increment) {
-				lineInterpret(vm);
-			}
-		} else if (vm->vars->condition == '=') {
-			for (long i = vm->vars->i; i == vm->vars->conditionArgument;
-					i += vm->vars->increment) {
-				lineInterpret(vm);
-			}
-		}
-
-		if (readStatus == EOF) {
-			printf("\nEncountered a EOF, exiting the program!\n");
-			exit(0);
-		}
-
 	} else if (string_equalsignorecase(string_copyvalueof("end"),
 			info->token)) {
+		vm->lineNum++;
 		return true;
+	} else if (string_equalsignorecase(string_copyvalueof("print special"), info->token)) {
+		interpret_print_special(info);
+	} else if (string_equalsignorecase(string_copyvalueof("//"), info->token)) {
+		// Log or something...
 	} else {
 		throwException(SYNTAX_ERROR, vm);
 	}
 	vm->lineNum++;
 
 	return false;
+}
+
+static void interpret_print_special(LineInfo *info) {
+	// Special Characters
+	string_t *newLine = string_copyvalueof("\\n");
+	string_t *tab = string_copyvalueof("\\t");
+
+	string_t *quotesRemoved = removeQuotes(info->restLine[0]);
+	if (string_equalsignorecase(quotesRemoved, newLine)) {
+		printf("\n");
+	} else if (string_equalsignorecase(quotesRemoved, tab)) {
+		printf("\t");
+	}
 }
 
 static void lineInterpret(VirtualMachine *vm) {
@@ -295,6 +262,59 @@ static void interpret_for(LineInfo *info, VirtualMachine *vm) {
 	string_t *incrementValue = string_substring(plusIndex + 1,
 			increment->length, increment);
 	vm->vars->increment = strtol(incrementValue->string, NULL, 10);
+
+
+	vm->vars->lines = (string_t**) calloc(10, sizeof(string_t*));
+			vm->vars->lineLength = 0;
+			vm->vars->allocatedLineLength = 10;
+
+			// Returns true when end is detected
+			bool interpretStatus = false;
+
+			int readStatus = 0;
+			do {
+				string_t *line = string_init();
+				readStatus = readLine(vm->location, line);
+
+				if (vm->vars->lineLength + 1 > vm->vars->allocatedLineLength) {
+					vm->vars->lines = (string_t**) realloc(vm->vars->lines,
+							10 * sizeof(string_t*));
+					vm->vars->allocatedLineLength += 10;
+				}
+				vm->vars->lineLength++;
+				vm->vars->lines[vm->vars->lineLength - 1] = line;
+
+				LineInfo *info = splitIntoTokens(line, vm);
+
+				interpretStatus = interpret(info, vm);
+
+				lineinfo_free(info);
+
+				printf("Interpreting Lines for FOR LOOP!\n");
+			} while (readStatus != EOF && !interpretStatus);
+
+			// Reading from existing lines
+			if (vm->vars->condition == '<') {
+				for (long i = vm->vars->i; i < vm->vars->conditionArgument;
+						i += vm->vars->increment) {
+					lineInterpret(vm);
+				}
+			} else if (vm->vars->condition == '>') {
+				for (long i = vm->vars->i; i > vm->vars->conditionArgument;
+						i += vm->vars->increment) {
+					lineInterpret(vm);
+				}
+			} else if (vm->vars->condition == '=') {
+				for (long i = vm->vars->i; i == vm->vars->conditionArgument;
+						i += vm->vars->increment) {
+					lineInterpret(vm);
+				}
+			}
+
+			if (readStatus == EOF) {
+				printf("\nEncountered a EOF, exiting the program!\n");
+				exit(0);
+			}
 }
 
 static void interpret_print(LineInfo *info) {

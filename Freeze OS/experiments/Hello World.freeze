@@ -1,3 +1,5 @@
-for: i = 0, i < 1000000000, i+1
-print: "HI"
+//: Prints hello world
+for: i = 0, i < 10, i+1
+PRINT: "Hello, World!"
+PRINT SPECIAL: "\n"
 end: for

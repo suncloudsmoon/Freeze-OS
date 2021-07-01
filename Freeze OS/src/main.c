@@ -29,28 +29,41 @@
 
 void testeverything();
 
-int main()
+int main(int argc, char** argv)
 {
-	char *testFile = "experiments\\Hello World.freeze";
+	FILE* test = stdin;
+	const char* testFile = "experiments\\Hello World.freeze";
 
+	/* If we are passed an argument, treat it as an input file name */
+	if (argc > 1) {
+		testFile = argv[1];
+	}
 	// Create the file
-//	FILE *first = fopen(testFile, "w");
-//	fputs("print: \"Hello, World\", \" Hi\"", first);
-//	fclose(first);
+	//	FILE *first = fopen(testFile, "w");
+	//	fputs("print: \"Hello, World\", \" Hi\"", first);
+	//	fclose(first);
+	test = fopen(testFile, "r");
 
-    FILE *test = fopen(testFile, "r");
+	/* Check for fopen failure */
+	if (test == NULL) {
+		perror(testFile);
+		exit(EXIT_FAILURE);
+	}
 
-    ignition(test);
+	ignition(test);
 
-    fclose(test);
+	if (test != stdin) {
+		fclose(test);
+	}
 
 	// For now
-//	testeverything();
+	//	testeverything();
 
-    return 0;
+	return 0;
 }
 
-void testeverything() {
+void testeverything()
+{
 	// First and the most buggiest...
 	test_string();
 }

@@ -3,3 +3,11 @@
 /Release/
 *.cproject
 *.project
+
+
+# lol don't mind me
+compile_commands.json
+build/
+.cache
+.clang-format
+.gdb_history

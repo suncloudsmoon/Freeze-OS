@@ -57,6 +57,17 @@ typedef struct {
 	int currentArgumentIndex;
 } Method;
 
+typedef struct {
+	long i;
+	char condition;
+	long conditionArgument;
+	long increment;
+
+	string_t **lines;
+	int lineLength;
+	int allocatedLineLength;
+} ForLoop;
+
 // Can create/destroy VMs via this way
 typedef struct {
 	FILE *location;
@@ -64,6 +75,13 @@ typedef struct {
 
 	Method **methods;
 	int numMethods;
+
+	// Loop Stuff
+	bool inForLoop;
+	ForLoop *vars;
+
+	bool inWhileLoop;
+
 } VirtualMachine;
 
 // Starts the virtual machine

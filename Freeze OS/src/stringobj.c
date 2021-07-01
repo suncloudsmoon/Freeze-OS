@@ -110,7 +110,7 @@ void string_concat_c(char letter, string_t *story) {
 }
 
 bool string_contains(char *s, string_t *story) {
-	return strstr(s, story->string) != NULL;
+	return strstr(story->string, s) != NULL;
 }
 
 bool string_equalsignorecase(string_t *one, string_t *story) {

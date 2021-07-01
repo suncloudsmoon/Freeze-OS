@@ -41,11 +41,13 @@ typedef struct {
 VirtualMachine* vm_init(FILE *stuff);
 static int readLine(FILE *stuff, string_t *line);
 static LineInfo* splitIntoTokens(string_t *line, VirtualMachine *vm);
-static void interpret(LineInfo *info, VirtualMachine *vm);
+static bool interpret(LineInfo *info, VirtualMachine *vm);
 
 static void restline_add(string_t *data, LineInfo *info);
 static void interpret_print(LineInfo *restLine);
 static void interpret_write(LineInfo *info);
+static void lineInterpret(VirtualMachine *vm);
+static void interpret_for(LineInfo *info, VirtualMachine *vm);
 static string_t* removeQuotes(string_t *data);
 
 // Free Methods
@@ -132,7 +134,7 @@ static LineInfo* splitIntoTokens(string_t *line, VirtualMachine *vm) {
 	int colonIndex = string_indexof(':', line);
 
 // Debug
-	printf("Colon Index: %d\n", colonIndex);
+	printf("\nColon Index: %d\n", colonIndex);
 
 // Safety First!
 	if (colonIndex == 0) {
@@ -175,21 +177,127 @@ static void restline_add(string_t *data, LineInfo *info) {
 	info->restLine[info->restLineLength - 1] = data;
 }
 
-static void interpret(LineInfo *info, VirtualMachine *vm) {
+static bool interpret(LineInfo *info, VirtualMachine *vm) {
 
 	if (string_equalsignorecase(string_copyvalueof("print"), info->token)) {
 		interpret_print(info);
 	} else if (string_equalsignorecase(string_copyvalueof("write"),
 			info->token)) {
 		interpret_write(info);
+	} else if (string_equalsignorecase(string_copyvalueof("for"),
+			info->token)) {
+		interpret_for(info, vm);
+
+		vm->vars->lines = (string_t**) calloc(10, sizeof(string_t*));
+		vm->vars->lineLength = 0;
+		vm->vars->allocatedLineLength = 10;
+
+		// Returns true when end is detected
+		bool interpretStatus = false;
+
+		int readStatus = 0;
+		do {
+			string_t *line = string_init();
+			readStatus = readLine(vm->location, line);
+
+			if (vm->vars->lineLength + 1 > vm->vars->allocatedLineLength) {
+				vm->vars->lines = (string_t**) realloc(vm->vars->lines,
+						10 * sizeof(string_t*));
+				vm->vars->allocatedLineLength += 10;
+			}
+			vm->vars->lineLength++;
+			vm->vars->lines[vm->vars->lineLength - 1] = line;
+
+			LineInfo *info = splitIntoTokens(line, vm);
+
+			interpretStatus = interpret(info, vm);
+
+			lineinfo_free(info);
+
+			printf("Interpreting Lines for FOR LOOP!\n");
+		} while (readStatus != EOF && !interpretStatus);
+
+		// Reading from existing lines
+		if (vm->vars->condition == '<') {
+			for (long i = vm->vars->i; i < vm->vars->conditionArgument;
+					i += vm->vars->increment) {
+				lineInterpret(vm);
+			}
+		} else if (vm->vars->condition == '>') {
+			for (long i = vm->vars->i; i > vm->vars->conditionArgument;
+					i += vm->vars->increment) {
+				lineInterpret(vm);
+			}
+		} else if (vm->vars->condition == '=') {
+			for (long i = vm->vars->i; i == vm->vars->conditionArgument;
+					i += vm->vars->increment) {
+				lineInterpret(vm);
+			}
+		}
+
+		if (readStatus == EOF) {
+			printf("\nEncountered a EOF, exiting the program!\n");
+			exit(0);
+		}
+
+	} else if (string_equalsignorecase(string_copyvalueof("end"),
+			info->token)) {
+		return true;
 	} else {
 		throwException(SYNTAX_ERROR, vm);
 	}
 	vm->lineNum++;
+
+	return false;
+}
+
+static void lineInterpret(VirtualMachine *vm) {
+	int lineCounter = 0;
+	while (lineCounter < vm->vars->lineLength - 1) {
+		LineInfo *info = splitIntoTokens(vm->vars->lines[lineCounter], vm);
+		interpret(info, vm);
+		lineinfo_free(info);
+		lineCounter++;
+	}
+
+}
+
+static void interpret_for(LineInfo *info, VirtualMachine *vm) {
+	vm->vars = (ForLoop*) calloc(1, sizeof(ForLoop));
+
+// i = 0
+	string_t *initialValue = info->restLine[0];
+	string_t *valueInString = string_substring(
+			string_indexof('=', initialValue) + 1, initialValue->length,
+			initialValue);
+	vm->vars->i = strtol(valueInString->string, NULL, 10);
+
+// i < 5
+	string_t *condition = info->restLine[1];
+
+	char contains = '='; // for now
+	if (string_contains("==", condition)) {
+		contains = '=';
+	} else if (string_contains(">", condition)) {
+		contains = '>';
+	} else if (string_contains("<", condition)) {
+		contains = '<';
+	}
+	int conditionIndex = string_indexof(contains, condition);
+	vm->vars->condition = string_charat(conditionIndex, condition);
+	string_t *conditionValue = string_substring(conditionIndex + 1,
+			condition->length, condition);
+	vm->vars->conditionArgument = strtol(conditionValue->string, NULL, 10);
+
+// i++
+	string_t *increment = info->restLine[2];
+	int plusIndex = string_indexof('+', increment);
+	string_t *incrementValue = string_substring(plusIndex + 1,
+			increment->length, increment);
+	vm->vars->increment = strtol(incrementValue->string, NULL, 10);
 }
 
 static void interpret_print(LineInfo *info) {
-
 	for (int i = 0; i < info->restLineLength; i++) {
 		string_t *token = removeQuotes(info->restLine[i]);
 		printf("%s", token->string);
@@ -199,16 +307,19 @@ static void interpret_print(LineInfo *info) {
 }
 
 static void interpret_write(LineInfo *info) {
-	// Don't know if info->restLine[0] exists tho??
-	// Getting the file path
+// Don't know if info->restLine[0] exists tho??
+// Getting the file path
 	string_t *filePath = removeQuotes(info->restLine[0]);
 	FILE *writing = fopen(filePath->string, "w");
 
-	// Getting the data to be written to file
+// Getting the data to be written to file
 	string_t *plainText = removeQuotes(info->restLine[1]);
 	fputs(plainText->string, writing);
 
+// Freeing resources
 	fclose(writing);
+	string_free(filePath);
+	string_free(plainText);
 }
 
 static string_t* removeQuotes(string_t *data) {

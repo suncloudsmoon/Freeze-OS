@@ -33,6 +33,14 @@
 
 #include <string.h>
 
+#ifdef __unix__
+#define strcat_s(src, len, dst)   \
+        ({                        \
+                strcat(src, dst); \
+                0;                \
+        })
+#endif
+
 #include "interpreter.h"
 
 /**

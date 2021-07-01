@@ -31,16 +31,18 @@
 #include "interpreter.h"
 #include "safedefault.h"
 
+const unsigned ALLOC_FACTOR = 16;
+
 // String class implementation like Java Strings
 
 // Static Prototypes
 static void growMem(int howMuch, string_t *mem);
 static void growArrayMem(int howMuch, string_t **mem);
 
-string_t* string_init() {
+string_t *string_init() {
 	string_t *string = (string_t*) calloc(1, sizeof(string_t));
-	string->string = (char*) calloc(BUFSIZ, sizeof(char));
-	string->allocatedLength = BUFSIZ;
+	string->string = (char*) calloc(ALLOC_FACTOR, sizeof(char));
+	string->allocatedLength = ALLOC_FACTOR;
 
 	strcpy(string->string, "");
 
@@ -83,10 +85,9 @@ void string_concat(char *text, string_t *story) {
 		throwException(INTEGER_OUT_OF_BOUNDS, NULL);
 	}
 
-	// This might be incorrect!!
 	if (story->length + textLength + 1 > story->allocatedLength) {
-		int numAdd = (story->length + textLength + 1)
-				- (story->allocatedLength)+ BUFSIZ;
+		int numAdd = (story->length + textLength + 1) - (story->allocatedLength)
+		             + ALLOC_FACTOR;
 		growMem(numAdd, story);
 	}
 	safe_strcat(story, text);
@@ -96,7 +97,7 @@ void string_concat(char *text, string_t *story) {
 void string_concat_c(char letter, string_t *story) {
 
 	if (story->length + 2 > story->allocatedLength) {
-		int numAdd = (story->length + 1) - (story->allocatedLength) + BUFSIZ;
+		int numAdd = (story->length + 1) - (story->allocatedLength) + ALLOC_FACTOR;
 		growMem(numAdd, story);
 	}
 

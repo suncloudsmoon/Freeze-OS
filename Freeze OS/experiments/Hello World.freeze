@@ -1,2 +1,3 @@
-print: "Hello, World"
-write: "C:\\Users\\super\\Desktop\\Hello World.txt", "Hello, World!"
+for: i = 0, i < 1000000000, i+1
+print: "HI"
+end: for

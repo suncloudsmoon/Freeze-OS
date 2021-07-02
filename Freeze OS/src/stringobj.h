@@ -41,22 +41,27 @@ int string_compareto(string_t *main, string_t *second);
 int string_comparetoignorecase(string_t *main, string_t *second);
 
 void string_concat(char *text, string_t *story);
-
+void string_concat_s(string_t *text, string_t *story);
 void string_concat_c(char letter, string_t *story);
 
-bool string_contains(char *s, string_t *story);
+bool string_contains(char *find, string_t *story);
+bool string_contains_s(string_t *find, string_t *story);
 
+bool string_equals(string_t *one, string_t *story);
 bool string_equalsignorecase(string_t *one, string_t *story);
 
 string_t* string_copyvalueof(char *text);
 
+bool string_startswith(char *suffix, string_t *story);
+bool string_startswith_s(string_t *suffix, string_t *story);
 bool string_endswith(char *suffix, string_t *story);
+bool string_endswith_s(string_t *suffix, string_t *story);
 
 int string_indexof(char ch, string_t *story);
+int string_indexof_s(char *ch, string_t *story);
+int string_lastindexof(char ch, string_t *story);
 
 bool string_isempty(string_t *story);
-
-int string_lastindexof(char ch, string_t *story);
 
 int string_length(string_t *story);
 

@@ -59,7 +59,7 @@ typedef struct {
 
 typedef struct {
 	long i;
-	char condition;
+	string_t *condition;
 	long conditionArgument;
 	long increment;
 
@@ -82,6 +82,12 @@ typedef struct {
 
 	bool inWhileLoop;
 
+	string_t *print_function_name, *write_function_name, *for_function_name, *end_function_name, *print_special_function_name, *comment_function_name;
+
+	// Operators
+	string_t *equals_operator, *greater_than_operator, *greather_than_or_equals_operator, *less_than_operator, *less_than_or_equals_operator;
+
+	string_t *new_line_character;
 } VirtualMachine;
 
 // Starts the virtual machine

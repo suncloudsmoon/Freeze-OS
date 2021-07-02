@@ -39,7 +39,7 @@ const unsigned ALLOC_FACTOR = 16;
 static void growMem(int howMuch, string_t *mem);
 static void growArrayMem(int howMuch, string_t **mem);
 
-string_t *string_init() {
+string_t* string_init() {
 	string_t *string = (string_t*) calloc(1, sizeof(string_t));
 	string->string = (char*) calloc(ALLOC_FACTOR, sizeof(char));
 	string->allocatedLength = ALLOC_FACTOR;
@@ -87,17 +87,22 @@ void string_concat(char *text, string_t *story) {
 
 	if (story->length + textLength + 1 > story->allocatedLength) {
 		int numAdd = (story->length + textLength + 1) - (story->allocatedLength)
-		             + ALLOC_FACTOR;
+				+ ALLOC_FACTOR;
 		growMem(numAdd, story);
 	}
 	safe_strcat(story, text);
 	story->length += textLength;
 }
 
+void string_concat_s(string_t *text, string_t *story) {
+	string_concat(text->string, story);
+}
+
 void string_concat_c(char letter, string_t *story) {
 
 	if (story->length + 2 > story->allocatedLength) {
-		int numAdd = (story->length + 1) - (story->allocatedLength) + ALLOC_FACTOR;
+		int numAdd = (story->length + 1) - (story->allocatedLength)
+				+ ALLOC_FACTOR;
 		growMem(numAdd, story);
 	}
 
@@ -110,8 +115,16 @@ void string_concat_c(char letter, string_t *story) {
 	story->length++;
 }
 
-bool string_contains(char *s, string_t *story) {
-	return strstr(story->string, s) != NULL;
+bool string_contains(char *find, string_t *story) {
+	return strstr(story->string, find) != NULL;
+}
+
+bool string_contains_s(string_t *find, string_t *story) {
+	return strstr(story->string, find->string);
+}
+
+bool string_equals(string_t *one, string_t *story) {
+	return strcmp(one->string, story->string) == 0;
 }
 
 bool string_equalsignorecase(string_t *one, string_t *story) {
@@ -125,7 +138,41 @@ string_t* string_copyvalueof(char *text) {
 	return story;
 }
 
-// Later implementation
+bool string_startswith(char *suffix, string_t *story) {
+	int suffixLength = strlen(suffix);
+
+	// Safety
+	if (suffixLength >= story->length) {
+		throwException(OTHER_EXCEPTION, NULL);
+	}
+
+	// "ab", "ab", 12, 01
+	for (int i = 0; i < suffixLength; i++) {
+		if (suffix[i] != string_charat(i, story)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool string_startswith_s(string_t *suffix, string_t *story) {
+	int suffixLength = suffix->length;
+
+		// Safety
+		if (suffixLength >= story->length) {
+			throwException(OTHER_EXCEPTION, NULL);
+		}
+
+		// "ab", "ab", 12, 01
+		for (int i = 0; i < suffixLength; i++) {
+			if (string_charat(i, suffix) != string_charat(i, story)) {
+				return false;
+			}
+		}
+		return true;
+}
+
+// Checks if the suffix is found at the end of story
 bool string_endswith(char *suffix, string_t *story) {
 	int suffixLength = strlen(suffix);
 
@@ -143,6 +190,23 @@ bool string_endswith(char *suffix, string_t *story) {
 	return true;
 }
 
+bool string_endswith_s(string_t *suffix, string_t *story) {
+	int suffixLength = suffix->length;
+
+	// Safety
+	if (suffixLength >= story->length) {
+		throwException(OTHER_EXCEPTION, NULL);
+	}
+
+	// "ab", "ab", 12, 01
+	for (int i = story->length - suffixLength - 1; i < story->length; i++) {
+		if (string_charat(i, suffix) != string_charat(i, story)) {
+			return false;
+		}
+	}
+	return true;
+}
+
 // Returns the index of the first occurrence of a char
 int string_indexof(char ch, string_t *story) {
 	for (int i = 0; i < story->length; i++)
@@ -150,6 +214,10 @@ int string_indexof(char ch, string_t *story) {
 			return i;
 
 	return -1;
+}
+
+int string_indexof_s(char *ch, string_t *story) {
+	return (int) strcspn(story->string, ch);
 }
 
 bool string_isempty(string_t *story) {

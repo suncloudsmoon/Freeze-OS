@@ -65,6 +65,23 @@ void ignition(FILE *stuff) {
 
 	VirtualMachine *vm = vm_init(stuff);
 
+	// Default functions of the programming language
+	vm->print_function_name = string_copyvalueof("print");
+	vm->write_function_name = string_copyvalueof("write");
+	vm->for_function_name = string_copyvalueof("for"); // "loop" for some reason does not work
+	vm->end_function_name = string_copyvalueof("end");
+	vm->print_special_function_name = string_copyvalueof("print special");
+
+	// Operators
+	vm->equals_operator = string_copyvalueof("==");
+	vm->greater_than_operator = string_copyvalueof(">");
+	vm->greather_than_or_equals_operator = string_copyvalueof(">=");
+	vm->less_than_operator = string_copyvalueof("<");
+	vm->less_than_or_equals_operator = string_copyvalueof("<=");
+
+	vm->comment_function_name = string_copyvalueof("//");
+	vm->new_line_character = string_copyvalueof("\\n");
+
 	int readStatus = 0;
 	do {
 		string_t *line = string_init();
@@ -132,6 +149,16 @@ static int readLine(FILE *stuff, string_t *line) {
 
 static LineInfo* splitIntoTokens(string_t *line, VirtualMachine *vm) {
 
+	LineInfo *info = (LineInfo*) calloc(1, sizeof(LineInfo));
+
+	if (string_startswith_s(vm->comment_function_name, line)) {
+		info->token = vm->comment_function_name;
+		return info;
+	} else if (string_startswith_s(vm->new_line_character, line)) {
+		info->token = vm->new_line_character;
+		return info;
+	}
+
 	int colonIndex = string_indexof(':', line);
 
 // Debug
@@ -142,10 +169,10 @@ static LineInfo* splitIntoTokens(string_t *line, VirtualMachine *vm) {
 		throwException(SYNTAX_ERROR, vm);
 	}
 
-	LineInfo *info = (LineInfo*) calloc(1, sizeof(LineInfo));
-
 	// Getting the token
 	info->token = string_substring(0, colonIndex, line);
+
+	// Allocates & reads the rest of line
 	info->restLine = (string_t**) calloc(10, sizeof(string_t*));
 	info->restLineAllocatedLength = 10;
 	info->restLineLength = 0;
@@ -180,22 +207,21 @@ static void restline_add(string_t *data, LineInfo *info) {
 
 static bool interpret(LineInfo *info, VirtualMachine *vm) {
 
-	if (string_equalsignorecase(string_copyvalueof("print"), info->token)) {
+	if (string_equalsignorecase(vm->print_function_name, info->token)) {
 		interpret_print(info);
-	} else if (string_equalsignorecase(string_copyvalueof("write"),
-			info->token)) {
+	} else if (string_equalsignorecase(vm->write_function_name, info->token)) {
 		interpret_write(info);
-	} else if (string_equalsignorecase(string_copyvalueof("for"),
-			info->token)) {
+	} else if (string_equalsignorecase(vm->for_function_name, info->token)) {
 		interpret_for(info, vm);
 
-	} else if (string_equalsignorecase(string_copyvalueof("end"),
-			info->token)) {
+	} else if (string_equalsignorecase(vm->end_function_name, info->token)) {
 		vm->lineNum++;
 		return true;
-	} else if (string_equalsignorecase(string_copyvalueof("print special"), info->token)) {
+	} else if (string_equalsignorecase(vm->print_special_function_name,
+			info->token)) {
 		interpret_print_special(info);
-	} else if (string_equalsignorecase(string_copyvalueof("//"), info->token)) {
+	} else if (string_equalsignorecase(vm->comment_function_name, info->token)
+			|| string_equalsignorecase(vm->new_line_character, info->token)) {
 		// Log or something...
 	} else {
 		throwException(SYNTAX_ERROR, vm);
@@ -216,6 +242,11 @@ static void interpret_print_special(LineInfo *info) {
 	} else if (string_equalsignorecase(quotesRemoved, tab)) {
 		printf("\t");
 	}
+
+	// Free resources
+	string_free(newLine);
+	string_free(tab);
+	string_free(quotesRemoved);
 }
 
 static void lineInterpret(VirtualMachine *vm) {
@@ -242,79 +273,109 @@ static void interpret_for(LineInfo *info, VirtualMachine *vm) {
 // i < 5
 	string_t *condition = info->restLine[1];
 
-	char contains = '='; // for now
-	if (string_contains("==", condition)) {
-		contains = '=';
-	} else if (string_contains(">", condition)) {
-		contains = '>';
-	} else if (string_contains("<", condition)) {
-		contains = '<';
+	string_t *operator = string_init(); // for now
+	if (string_contains_s(vm->equals_operator, condition)) {
+		string_concat_s(vm->equals_operator, operator);
+
+	} else if (string_contains_s(vm->greather_than_or_equals_operator,
+			condition)) {
+		string_concat_s(vm->greather_than_or_equals_operator, operator);
+
+	} else if (string_contains_s(vm->less_than_or_equals_operator, condition)) {
+		string_concat_s(vm->less_than_or_equals_operator, operator);
+
+	} else if (string_contains_s(vm->greater_than_operator, condition)) {
+		string_concat_s(vm->greater_than_operator, operator);
+
+	} else if (string_contains_s(vm->less_than_operator, condition)) {
+		string_concat_s(vm->less_than_operator, operator);
 	}
-	int conditionIndex = string_indexof(contains, condition);
-	vm->vars->condition = string_charat(conditionIndex, condition);
-	string_t *conditionValue = string_substring(conditionIndex + 1,
-			condition->length, condition);
+	vm->vars->condition = operator;
+
+	int conditionIndex = string_indexof_s(operator->string, condition);
+	string_t *conditionValue;
+	if (string_equals(vm->less_than_or_equals_operator, operator)
+			|| string_equals(vm->greather_than_or_equals_operator, operator)) {
+		conditionValue = string_substring(conditionIndex + 2, condition->length,
+				condition);
+	} else {
+		conditionValue = string_substring(conditionIndex + 1, condition->length,
+				condition);
+	}
 	vm->vars->conditionArgument = strtol(conditionValue->string, NULL, 10);
 
 // i++
 	string_t *increment = info->restLine[2];
-	int plusIndex = string_indexof('+', increment);
-	string_t *incrementValue = string_substring(plusIndex + 1,
+	// There might be a bug here
+	int plusIndex = string_indexof_s("++", increment);
+	string_t *incrementValue = string_substring(plusIndex + 2,
 			increment->length, increment);
 	vm->vars->increment = strtol(incrementValue->string, NULL, 10);
 
-
 	vm->vars->lines = (string_t**) calloc(10, sizeof(string_t*));
-			vm->vars->lineLength = 0;
-			vm->vars->allocatedLineLength = 10;
+	vm->vars->lineLength = 0;
+	vm->vars->allocatedLineLength = 10;
 
-			// Returns true when end is detected
-			bool interpretStatus = false;
+	// Reading lines inside the for loop
+	int readStatus = 0;
+	string_t *threeLetters;
+	do {
+		string_t *line = string_init();
+		readStatus = readLine(vm->location, line);
 
-			int readStatus = 0;
-			do {
-				string_t *line = string_init();
-				readStatus = readLine(vm->location, line);
+		if (vm->vars->lineLength + 1 > vm->vars->allocatedLineLength) {
+			vm->vars->lines = (string_t**) realloc(vm->vars->lines,
+					10 * sizeof(string_t*));
+			vm->vars->allocatedLineLength += 10;
+		}
 
-				if (vm->vars->lineLength + 1 > vm->vars->allocatedLineLength) {
-					vm->vars->lines = (string_t**) realloc(vm->vars->lines,
-							10 * sizeof(string_t*));
-					vm->vars->allocatedLineLength += 10;
-				}
-				vm->vars->lineLength++;
-				vm->vars->lines[vm->vars->lineLength - 1] = line;
+		threeLetters = string_substring(0, 3, line);
 
-				LineInfo *info = splitIntoTokens(line, vm);
+		vm->vars->lineLength++;
+		vm->vars->lines[vm->vars->lineLength - 1] = line;
 
-				interpretStatus = interpret(info, vm);
+	} while (readStatus != EOF
+			&& !string_equalsignorecase(vm->end_function_name, threeLetters));
 
-				lineinfo_free(info);
+	// Reading from existing lines
+	if (string_equals(vm->vars->condition, vm->greater_than_operator)) {
+		for (long i = vm->vars->i; i < vm->vars->conditionArgument;
+				i += vm->vars->increment) {
+			lineInterpret(vm);
+		}
 
-				printf("Interpreting Lines for FOR LOOP!\n");
-			} while (readStatus != EOF && !interpretStatus);
+	} else if (string_equals(vm->vars->condition,
+			vm->less_than_or_equals_operator)) {
+		for (long i = vm->vars->i; i <= vm->vars->conditionArgument;
+				i += vm->vars->increment) {
+			lineInterpret(vm);
+		}
 
-			// Reading from existing lines
-			if (vm->vars->condition == '<') {
-				for (long i = vm->vars->i; i < vm->vars->conditionArgument;
-						i += vm->vars->increment) {
-					lineInterpret(vm);
-				}
-			} else if (vm->vars->condition == '>') {
-				for (long i = vm->vars->i; i > vm->vars->conditionArgument;
-						i += vm->vars->increment) {
-					lineInterpret(vm);
-				}
-			} else if (vm->vars->condition == '=') {
-				for (long i = vm->vars->i; i == vm->vars->conditionArgument;
-						i += vm->vars->increment) {
-					lineInterpret(vm);
-				}
-			}
+	} else if (string_equals(vm->vars->condition, vm->greater_than_operator)) {
+		for (long i = vm->vars->i; i > vm->vars->conditionArgument;
+				i += vm->vars->increment) {
+			lineInterpret(vm);
+		}
 
-			if (readStatus == EOF) {
-				printf("\nEncountered a EOF, exiting the program!\n");
-				exit(0);
-			}
+	} else if (string_equals(vm->vars->condition,
+			vm->greather_than_or_equals_operator)) {
+		// ) is the same thing as >=, but in a shorter form
+		for (long i = vm->vars->i; i >= vm->vars->conditionArgument;
+				i += vm->vars->increment) {
+			lineInterpret(vm);
+		}
+
+	} else if (string_equals(vm->vars->condition, vm->equals_operator)) {
+		for (long i = vm->vars->i; i == vm->vars->conditionArgument;
+				i += vm->vars->increment) {
+			lineInterpret(vm);
+		}
+	}
+
+	if (readStatus == EOF) {
+		printf("\nEncountered a EOF, exiting the program!\n");
+		exit(0);
+	}
 }
 
 static void interpret_print(LineInfo *info) {

@@ -21,16 +21,14 @@
  */
 
 /*
- * safedefault.h
+ * bytecode.c
  *
- *  Created on: Jun 29, 2021
+ *  Created on: Jul 4, 2021
  *      Author: suncloudsmoon
  */
 
-#ifndef SRC_SAFEDEFAULT_H_
-#define SRC_SAFEDEFAULT_H_
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
-void safe_strcat(string_t *dest, char *src);
-char safe_fgetc(FILE *stream);
-
-#endif /* SRC_SAFEDEFAULT_H_ */
+#include "bytecode.h"

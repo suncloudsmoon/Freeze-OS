@@ -20,50 +20,40 @@
  * SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
+/*
+ * safedefault.h
+ *
+ *  Created on: Jun 29, 2021
+ *      Author: suncloudsmoon
+ */
 
-#include "interpreter.h"
-#include "test.h"
+#ifndef SRC_SAFEDEFAULT_H_
+#define SRC_SAFEDEFAULT_H_
 
-void testeverything();
+#include "stringobj.h"
 
-int main(int argc, char** argv)
-{
-	FILE* test = stdin;
-	const char* testFile = "experiments\\Hello World.freeze";
+// Memory Safety Functions
+void* safe_calloc(size_t elements, size_t type_size);
+void* safe_realloc(void *data, size_t extra_size);
 
-	/* If we are passed an argument, treat it as an input file name */
-	if (argc > 1) {
-		testFile = argv[1];
-	}
-	// Create the file
-	//	FILE *first = fopen(testFile, "w");
-	//	fputs("print: \"Hello, World\", \" Hi\"", first);
-	//	fclose(first);
-	test = fopen(testFile, "r");
+// Character and String Functions
+/*
+ * To handle errors if there is an unknown character in file stream.
+ */
+char safe_fgetc(FILE *stream);
 
-	/* Check for fopen failure */
-	if (test == NULL) {
-		perror(testFile);
-		exit(EXIT_FAILURE);
-	}
+/*
+ * Throws an exception if strncat returns a negative value
+ */
+void safe_strncat(char *dest, size_t destLength, char *src, size_t srcLength);
+void safe_strncpy(char *dest, size_t destLength, char *src, size_t srcLength);
 
-	ignition(test);
+// File Handling Functions
+FILE* safe_fopen(const char *filepath, const char *mode);
+void safe_fputs(const char *str, FILE *stream);
+void safe_fclose(FILE *stream);
 
-	if (test != stdin) {
-		fclose(test);
-	}
+// Print Functions
+void safe_printf(const char *format, ...);
 
-	// For now
-	//	testeverything();
-
-	return 0;
-}
-
-void testeverything()
-{
-	// First and the most buggiest...
-	test_string();
-}
+#endif /* SRC_SAFEDEFAULT_H_ */

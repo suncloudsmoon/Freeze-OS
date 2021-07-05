@@ -25,11 +25,12 @@
 
 #include <stdbool.h>
 
- // String object like Java Strings
- typedef struct {
-    char *string;
-    int length;
-    int allocatedLength;
+// String object like Java Strings
+typedef struct {
+	char *string;
+
+	int length;
+	int allocatedLength;
 } string_t;
 
 string_t* string_init();
@@ -63,7 +64,7 @@ int string_lastindexof(char ch, string_t *story);
 
 bool string_isempty(string_t *story);
 
-int string_length(string_t *story);
+void string_set(char *text, string_t *story);
 
 /**
  * Replaces a char with another char. For example, if you want to replace 'H' with 'Z' in "Hello World", the result would be

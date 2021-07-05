@@ -1,9 +1,8 @@
-/.settings/
-/Debug/
-/Release/
+.settings/
+Debug/
+Release/
 *.cproject
 *.project
-
 
 # lol don't mind me
 compile_commands.json

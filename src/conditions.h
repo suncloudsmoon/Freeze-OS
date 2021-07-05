@@ -21,46 +21,22 @@
  */
 
 /*
- * safedefault.c
+ * conditions.h
  *
- *  Created on: Jun 29, 2021
+ *  Created on: Jul 3, 2021
  *      Author: suncloudsmoon
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
+#ifndef SRC_CONDITIONS_H_
+#define SRC_CONDITIONS_H_
 
-#include <string.h>
+#include "vm.h"
+#include "gc.h"
 
-#ifdef __unix__
-#define strcat_s(src, len, dst)   \
-        ({                        \
-                strcat(src, dst); \
-                0;                \
-        })
-#endif
+void interpret_varinitialization(string_t *name, string_t *valueInString, VariableManager *vars);
+void interpret_artimetic(string_t *beforeValue, string_t *operator, string_t *afterValue, VariableManager *vars);
 
-#include "interpreter.h"
+void interpret_if(LineInfo *info, VirtualMachine *vm);
+void interpret_for(LineInfo *info, VirtualMachine *vm);
 
-/**
- * Throws an exception if strcat returns a negative value
- */
-void safe_strcat(string_t *dest, char *src) {
-	int errorCode;
-	if ((errorCode = strcat_s(dest->string, dest->allocatedLength, src)) != 0) {
-		printf("%s: %s\n", strerror(errorCode), src);
-		exit(errorCode);
-	}
-}
-
-/**
- * To handle errors if there is an unknown character in file stream.
- */
-char safe_fgetc(FILE *stream) {
-	char letter = fgetc(stream);
-	if (ferror(stream) != 0) {
-		throwException(OTHER_EXCEPTION, NULL);
-	}
-	return letter;
-}
+#endif /* SRC_CONDITIONS_H_ */

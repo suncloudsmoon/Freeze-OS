@@ -20,15 +20,59 @@
  * SOFTWARE.
  */
 
-#ifndef DEBUGHELPER_H_INCLUDED
-#define DEBUGHELPER_H_INCLUDED
-
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 
-typedef struct {
-    bool isEnabled;
-} DebugInfo;
+#include <string.h>
 
-void printd(DebugInfo *info, char *message);
+#include "test.h"
+#include "vm.h"
+#include "interpreter.h"
 
-#endif // DEBUGHELPER_H_INCLUDED
+#define PATHSIZE 2048
+
+void testeverything();
+
+// What do the arguments mean exactly?
+int main(int argc, char **argv) {
+	const char *defaultTest = "experiments\\Test #1.fz";
+	char testFile[PATHSIZE];
+
+	FILE *test = stdin;
+
+	/* If we are passed an argument, treat it as an input file name */
+	if (argc > 1) {
+		strncpy(testFile, argv[1], PATHSIZE);
+		test = fopen(testFile, "r");
+
+	} else if (defaultTest != NULL) {
+		strncpy(testFile, defaultTest, PATHSIZE);
+		test = fopen(testFile, "r");
+	}
+
+	/* Check for fopen failure */
+	if (test == NULL) {
+		perror(testFile);
+		exit(EXIT_FAILURE);
+	}
+
+	// Starting the interpreter
+	VirtualMachine *vm = vm_init(test);
+	ignition(vm);
+	vm_free(vm);
+
+	if (test != stdin) {
+		fclose(test);
+	}
+
+	// For now
+	//	testeverything();
+
+	return 0;
+}
+
+void testeverything() {
+	// The most annoying...
+	test_string();
+}

@@ -26,12 +26,13 @@
 
 #include <ctype.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "stringobj.h"
-#include "interpreter.h"
 #include "safedefault.h"
+#include "vm.h"
 
-const unsigned ALLOC_FACTOR = 16;
+#define ALLOC_FACTOR 16
 
 // String class implementation like Java Strings
 
@@ -39,27 +40,28 @@ const unsigned ALLOC_FACTOR = 16;
 static void growMem(int howMuch, string_t *mem);
 static void growArrayMem(int howMuch, string_t **mem);
 
+// Math Functions
+static int min(int x, int y);
+
 string_t* string_init() {
-	string_t *string = (string_t*) calloc(1, sizeof(string_t));
-	string->string = (char*) calloc(ALLOC_FACTOR, sizeof(char));
+	string_t *string = (string_t*) safe_calloc(1, sizeof(string_t));
+	string->string = (char*) safe_calloc(ALLOC_FACTOR, sizeof(char));
+
+	string->length = 0; // I don't know if this is necessary
 	string->allocatedLength = ALLOC_FACTOR;
 
-	strcpy(string->string, "");
+	safe_strncpy(string->string, string->allocatedLength, "", 1);
 
 	return string;
 }
 
 char string_charat(int index, string_t *story) {
 	// Add safety if accessed out of bounds, return NULL
-	if (index < 0 || index >= story->length) {
-		return 0;
-	} else {
-		return story->string[index];
-	}
+	return (index < 0 || index >= story->length) ? 0 : story->string[index];
 }
 
 int string_compareto(string_t *main, string_t *second) {
-	return strcmp(main->string, second->string);
+	return strncmp(main->string, second->string, main->length);
 }
 
 int string_comparetoignorecase(string_t *first, string_t *second) {
@@ -67,7 +69,8 @@ int string_comparetoignorecase(string_t *first, string_t *second) {
 	string_t *firstTemp = string_tolowercase(first);
 	string_t *secondTemp = string_tolowercase(second);
 
-	bool compared = strcmp(firstTemp->string, secondTemp->string);
+	int compared = strncmp(firstTemp->string, secondTemp->string,
+			firstTemp->length);
 
 	// Free resources
 	string_free(firstTemp);
@@ -81,16 +84,15 @@ void string_concat(char *text, string_t *story) {
 	int textLength = strlen(text);
 
 	// Safety
-	if (textLength <= 0) {
+	if (textLength <= 0)
 		throwException(INTEGER_OUT_OF_BOUNDS, NULL);
-	}
 
 	if (story->length + textLength + 1 > story->allocatedLength) {
-		int numAdd = (story->length + textLength + 1) - (story->allocatedLength)
-				+ ALLOC_FACTOR;
+		int numAdd = (story->length + textLength + 1)
+				- (story->allocatedLength)+ ALLOC_FACTOR;
 		growMem(numAdd, story);
 	}
-	safe_strcat(story, text);
+	safe_strncat(story->string, story->allocatedLength, text, textLength);
 	story->length += textLength;
 }
 
@@ -101,8 +103,8 @@ void string_concat_s(string_t *text, string_t *story) {
 void string_concat_c(char letter, string_t *story) {
 
 	if (story->length + 2 > story->allocatedLength) {
-		int numAdd = (story->length + 1) - (story->allocatedLength)
-				+ ALLOC_FACTOR;
+		int numAdd = (story->length + 1)
+				- (story->allocatedLength)+ ALLOC_FACTOR;
 		growMem(numAdd, story);
 	}
 
@@ -111,8 +113,39 @@ void string_concat_c(char letter, string_t *story) {
 	temp[0] = letter;
 	temp[1] = '\0';
 
-	safe_strcat(story, temp);
+	safe_strncat(story->string, story->allocatedLength, temp, 1);
 	story->length++;
+}
+
+/*
+ * Must have a NULL at the end
+ */
+void string_addstrings(string_t *dest, ...) {
+	va_list args;
+
+	va_start(args, dest);
+	while (true) {
+		char *arg = va_arg(args, char*);
+		if (arg == NULL)
+			break;
+
+		string_concat(arg, dest);
+	}
+	va_end(args);
+}
+
+void string_addstrings_s(string_t *dest, ...) {
+	va_list args;
+
+	va_start(args, dest);
+	while (true) {
+		string_t *arg = va_arg(args, string_t*);
+		if (arg == NULL)
+			break;
+
+		string_concat_s(arg, dest);
+	}
+	va_end(args);
 }
 
 bool string_contains(char *find, string_t *story) {
@@ -124,7 +157,7 @@ bool string_contains_s(string_t *find, string_t *story) {
 }
 
 bool string_equals(string_t *one, string_t *story) {
-	return strcmp(one->string, story->string) == 0;
+	return strncmp(one->string, story->string, one->length) == 0;
 }
 
 bool string_equalsignorecase(string_t *one, string_t *story) {
@@ -142,34 +175,30 @@ bool string_startswith(char *suffix, string_t *story) {
 	int suffixLength = strlen(suffix);
 
 	// Safety
-	if (suffixLength >= story->length) {
-		throwException(OTHER_EXCEPTION, NULL);
-	}
+	if (suffixLength >= story->length)
+		throwException(INTEGER_OUT_OF_BOUNDS, NULL);
 
 	// "ab", "ab", 12, 01
-	for (int i = 0; i < suffixLength; i++) {
-		if (suffix[i] != string_charat(i, story)) {
+	for (int i = 0; i < suffixLength; i++)
+		if (suffix[i] != string_charat(i, story))
 			return false;
-		}
-	}
+
 	return true;
 }
 
 bool string_startswith_s(string_t *suffix, string_t *story) {
 	int suffixLength = suffix->length;
 
-		// Safety
-		if (suffixLength >= story->length) {
-			throwException(OTHER_EXCEPTION, NULL);
-		}
+	// Safety
+	if (suffixLength >= story->length)
+		throwException(OTHER_EXCEPTION, NULL);
 
-		// "ab", "ab", 12, 01
-		for (int i = 0; i < suffixLength; i++) {
-			if (string_charat(i, suffix) != string_charat(i, story)) {
-				return false;
-			}
-		}
-		return true;
+	// "ab", "ab", 12, 01
+	for (int i = 0; i < suffixLength; i++)
+		if (string_charat(i, suffix) != string_charat(i, story))
+			return false;
+
+	return true;
 }
 
 // Checks if the suffix is found at the end of story
@@ -177,33 +206,27 @@ bool string_endswith(char *suffix, string_t *story) {
 	int suffixLength = strlen(suffix);
 
 	// Safety
-	if (suffixLength >= story->length) {
+	if (suffixLength >= story->length)
 		throwException(OTHER_EXCEPTION, NULL);
-	}
 
 	// "ab", "ab", 12, 01
-	for (int i = story->length - suffixLength - 1; i < story->length; i++) {
-		if (suffix[i] != string_charat(i, story)) {
+	for (int i = story->length - suffixLength - 1; i < story->length; i++)
+		if (suffix[i] != string_charat(i, story))
 			return false;
-		}
-	}
+
 	return true;
 }
 
 bool string_endswith_s(string_t *suffix, string_t *story) {
-	int suffixLength = suffix->length;
-
 	// Safety
-	if (suffixLength >= story->length) {
+	if (suffix->length >= story->length)
 		throwException(OTHER_EXCEPTION, NULL);
-	}
 
 	// "ab", "ab", 12, 01
-	for (int i = story->length - suffixLength - 1; i < story->length; i++) {
-		if (string_charat(i, suffix) != string_charat(i, story)) {
+	for (int i = story->length - suffix->length - 1; i < story->length; i++)
+		if (string_charat(i, suffix) != string_charat(i, story))
 			return false;
-		}
-	}
+
 	return true;
 }
 
@@ -224,59 +247,36 @@ bool string_isempty(string_t *story) {
 	return story->length == 0;
 }
 
+void string_set(char *text, string_t *story) {
+	strcpy(story->string, text);
+	story->length = strlen(text);
+}
+
 int string_lastindexof(char ch, string_t *story) {
 	int index = 0;
-	for (int i = 0; i < story->length; i++) {
-		if (ch == story->string[i]) {
+	for (int i = 0; i < story->length; i++)
+		if (ch == story->string[i])
 			index = i;
-		}
-	}
 
 	return index;
 }
 
 void string_replace(char oldChar, char newChar, string_t *story) {
-	for (int i = 0; i < story->length; i++) {
-		if (story->string[i] == oldChar) {
+	for (int i = 0; i < story->length; i++)
+		if (story->string[i] == oldChar)
 			story->string[i] = newChar;
-		}
-	}
-}
-
-/**
- * gets() specially made for the string object
- */
-void getsa(string_t *story) {
-	char input;
-	while (true) {
-		input = getchar();
-		if (input == '\n' || input == '\0' || input == EOF) {
-			break;
-		} else {
-			string_concat_c(input, story);
-		}
-	}
 }
 
 // Inclusive to exclusive
 string_t* string_substring(int beginIndex, int endIndex, string_t *story) {
 	// Safety First!
-	if (beginIndex < 0 || endIndex > story->length) {
+	if (beginIndex < 0 || endIndex > story->length)
 		// TODO: Throw an exception with line number
-		return NULL;
-	}
+		throwException(INTEGER_OUT_OF_BOUNDS, NULL);
 
 	string_t *newString = string_init();
-
-	char tempString[(endIndex - beginIndex) + 1];
-	int tempCounter = 0;
-	for (int i = beginIndex; i < endIndex; i++) {
-		tempString[tempCounter] = string_charat(i, story);
-		tempCounter++;
-	}
-	tempString[tempCounter] = '\0';
-
-	string_concat(tempString, newString);
+	for (int i = beginIndex; i < endIndex; i++)
+		string_concat_c(string_charat(i, story), newString);
 
 	return newString;
 }
@@ -302,21 +302,26 @@ string_t** string_split(char *regex, string_t *story) {
 string_t* string_tolowercase(string_t *story) {
 	string_t *temp = string_init();
 
-	for (int i = 0; i < story->length; i++) {
-		string_concat_c(tolower(story->string[i]), temp);
-	}
+	for (int i = 0; i < story->length; i++)
+		string_concat_c(tolower(string_charat(i, story)), temp);
 
 	return temp;
+}
+
+void string_free(string_t *story) {
+	free(story->string);
+	free(story);
 }
 
 // Static Methods
 static void growMem(int howMuch, string_t *mem) {
 
-	char *newStr = (char*) calloc(mem->allocatedLength + howMuch, sizeof(char));
-	strcpy(newStr, mem->string);
+	int numAdd = mem->allocatedLength + howMuch;
+	char *newStr = (char*) safe_calloc(numAdd, sizeof(char));
+	safe_strncpy(newStr, numAdd, mem->string, mem->length);
 	free(mem->string);
 
-	mem->string = newStr;
+	mem->string = newStr; // I think this will create a memory leak
 	mem->allocatedLength += howMuch;
 }
 
@@ -324,7 +329,23 @@ static void growArrayMem(int howMuch, string_t **mem) {
 	mem = (string_t**) realloc(mem, howMuch);
 }
 
-void string_free(string_t *story) {
-	free(story->string);
-	free(story);
+////////////////// Functions not directly connected to the string object //////////////////
+/*
+ * gets() specially made for the string object
+ */
+void getsa(string_t *story) {
+	// TODO: This function is broken :(
+	char input;
+	while (true) {
+		input = getchar();
+		if (input == '\n' || input == '\0' || input == EOF) {
+			break;
+		} else {
+			string_concat_c(input, story);
+		}
+	}
+}
+
+static int min(int x, int y) {
+	return (x > y) ? y : x;
 }

@@ -20,17 +20,22 @@
  * SOFTWARE.
  */
 
-#ifndef INTERPRETER_H_INCLUDED
-#define INTERPRETER_H_INCLUDED
+/*
+ * vm.h
+ *
+ *  Created on: Jul 3, 2021
+ *      Author: suncloudsmoon
+ */
+
+#ifndef SRC_VM_H_
+#define SRC_VM_H_
 
 #include <stdbool.h>
 
+#include "gc.h"
 #include "stringobj.h"
 
-#define ARGUMENTLIMIT 1000
-
-// Method stuff
-
+// Exception Definitions
 typedef enum {
 	BUFFER_OVERFLOW = -5,
 	MEMORY_ALLOCATION_EXCEPTION = -10,
@@ -40,13 +45,31 @@ typedef enum {
 	OTHER_EXCEPTION = -30
 } RuntimeException;
 
-typedef enum {
-	INTEGER_ARGUMENT_TYPE = 1, FLOAT_ARGUMENT_TYPE = 2, OBJECT_ARGUMENT_TYPE = 3, VARARGS_ARGUMENT_TYPE = 4 // String is also an object like Java
-} ArgumentType;
+typedef struct {
+	string_t *token;
+	string_t **restLine;
 
-typedef enum {
-	VOID_RETURN_TYPE = 0, INTEGER_RETURN_TYPE = 1, FLOAT_RETURN_TYPE = 2, OBJECT_RETURN_TYPE = 3
-} ReturnType;
+	// Counters
+	int restLineLength;
+	int restLineAllocatedLength;
+} LineInfo;
+
+// The abstract or parent class called "Loop" that is meant to be extended by for and while loops
+typedef struct Loop {
+	LineInfo **info;
+
+	int lineLength;
+	int allocatedLineLength;
+} Loop;
+
+typedef struct {
+	struct Loop;
+
+	long *i;
+	string_t *condition;
+	long conditionArgument;
+	long increment;
+} ForLoop;
 
 typedef struct {
 	string_t *name; // like "print"
@@ -57,43 +80,46 @@ typedef struct {
 	int currentArgumentIndex;
 } Method;
 
-typedef struct {
-	long i;
-	string_t *condition;
-	long conditionArgument;
-	long increment;
-
-	string_t **lines;
-	int lineLength;
-	int allocatedLineLength;
-} ForLoop;
-
+// The virtual machine is very much tied to the design of the operating system
 // Can create/destroy VMs via this way
 typedef struct {
-	FILE *location;
+	// File system
+	string_t *rootDir, *systemDir, *systemDirRecycleBin, *userDir,
+			*userDirRecycleBin;
+
+	FILE *location, *logFile;
 	int lineNum;
+
+	VariableManager *manager;
 
 	Method **methods;
 	int numMethods;
 
 	// Loop Stuff
-	bool inForLoop;
 	ForLoop *vars;
 
-	bool inWhileLoop;
-
-	string_t *print_function_name, *write_function_name, *for_function_name, *end_function_name, *print_special_function_name, *comment_function_name;
+	// Language stuff
+	string_t *print_function_name, *write_function_name, *for_function_name,
+			*end_function_name, *print_special_function_name;
 
 	// Operators
-	string_t *equals_operator, *greater_than_operator, *greather_than_or_equals_operator, *less_than_operator, *less_than_or_equals_operator;
+	string_t *equals_operator, *greater_than_operator,
+			*greather_than_or_equals_operator, *less_than_operator,
+			*less_than_or_equals_operator;
 
-	string_t *new_line_character;
+	string_t *addition_operator;
+
+	string_t *setting_equal_operator;
+
+	string_t *comment_function_name, *new_line_character;
+
 } VirtualMachine;
 
-// Starts the virtual machine
-void ignition(FILE *stuff);
+VirtualMachine* vm_init(FILE *stream);
+void vm_free(VirtualMachine *vm);
 
+// Exception functions
 // Handling errors, creating safety
-void throwException(RuntimeException exception, VirtualMachine *vm);
+void throwException(RuntimeException exception, const VirtualMachine *vm);
 
-#endif // INTERPRETER_H_INCLUDED
+#endif /* SRC_VM_H_ */

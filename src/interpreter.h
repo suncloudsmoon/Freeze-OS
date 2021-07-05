@@ -20,14 +20,36 @@
  * SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
+#ifndef INTERPRETER_H_INCLUDED
+#define INTERPRETER_H_INCLUDED
 
-#include "debughelper.h"
+#include "vm.h"
+#include "conditions.h"
+#include "stringobj.h"
 
-void printd(DebugInfo *info, char *message) {
-    if (info->isEnabled) {
-        printf("<[Debug]: %s>\n", message);
-    }
-}
+// Interpreter logic
+/*
+ * Starts the virtual machine
+ */
+void ignition(VirtualMachine *vm);
+int readLine(FILE *stuff, string_t *line);
+LineInfo* splitIntoTokens(string_t *line, VirtualMachine *vm);
+bool interpret(LineInfo *info, VirtualMachine *vm);
+
+// Line Info Stuff
+LineInfo* lineinfo_init();
+void lineinfo_addsplits(string_t *data, LineInfo *info);
+void lineinfo_free(LineInfo *l);
+
+Method* method_init(string_t *name, ReturnType returnType);
+void method_free(Method *method);
+
+// Functions in the Freeze Programming Language
+void interpret_print(LineInfo *info, VirtualMachine *vm);
+void interpret_write(LineInfo *info);
+void interpret_print_special(LineInfo *info);
+
+// Helper methods for parsing print and more
+string_t* removeQuotes(string_t *data);
+
+#endif // INTERPRETER_H_INCLUDED

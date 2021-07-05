@@ -46,7 +46,7 @@ static void waitToExit(int code);
 VirtualMachine* vm_init(FILE *stream) {
 	VirtualMachine *vm = (VirtualMachine*) calloc(1, sizeof(VirtualMachine));
 	vm->location = stream;
-	vm->lineNum = 1;
+	vm->lineNum = 0;
 
 	vm->manager = varmanager_init();
 

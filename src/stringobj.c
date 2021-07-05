@@ -41,7 +41,7 @@ static void growMem(int howMuch, string_t *mem);
 static void growArrayMem(int howMuch, string_t **mem);
 
 // Math Functions
-static int min(int x, int y);
+static int max(int x, int y);
 
 string_t* string_init() {
 	string_t *string = (string_t*) safe_calloc(1, sizeof(string_t));
@@ -69,14 +69,36 @@ int string_comparetoignorecase(string_t *first, string_t *second) {
 	string_t *firstTemp = string_tolowercase(first);
 	string_t *secondTemp = string_tolowercase(second);
 
-	int compared = strncmp(firstTemp->string, secondTemp->string,
-			firstTemp->length);
+	int compared = string_compareto(firstTemp, secondTemp);
 
 	// Free resources
 	string_free(firstTemp);
 	string_free(secondTemp);
 
 	return compared;
+}
+
+bool string_equals(string_t *one, string_t *story) {
+	// My own implementation because strncmp is buggy for some reason
+	if (one->length > story->length || story->length > one->length)
+		return false;
+	else
+		for (int i = 0; i < one->length; i++)
+			if (one->string[i] != story->string[i])
+				return false;
+
+	return true;
+}
+
+bool string_equalsignorecase(string_t *one, string_t *story) {
+	if (one->length > story->length || story->length > one->length)
+		return false;
+	else
+		for (int i = 0; i < one->length; i++)
+			if (tolower(one->string[i]) != tolower(story->string[i]))
+				return false;
+
+	return true;
 }
 
 // 5 + 1 = 6; allocated 1
@@ -156,14 +178,6 @@ bool string_contains_s(string_t *find, string_t *story) {
 	return strstr(story->string, find->string);
 }
 
-bool string_equals(string_t *one, string_t *story) {
-	return strncmp(one->string, story->string, one->length) == 0;
-}
-
-bool string_equalsignorecase(string_t *one, string_t *story) {
-	return string_comparetoignorecase(one, story) == 0;
-}
-
 string_t* string_copyvalueof(char *text) {
 	string_t *story = string_init();
 	string_concat(text, story);
@@ -175,7 +189,7 @@ bool string_startswith(char *suffix, string_t *story) {
 	int suffixLength = strlen(suffix);
 
 	// Safety
-	if (suffixLength >= story->length)
+	if (suffixLength > story->length)
 		throwException(INTEGER_OUT_OF_BOUNDS, NULL);
 
 	// "ab", "ab", 12, 01
@@ -259,6 +273,24 @@ int string_lastindexof(char ch, string_t *story) {
 			index = i;
 
 	return index;
+}
+
+int string_lastindexof_s(char *ch, string_t *story) {
+	string_t *chString = string_copyvalueof(ch);
+	if (chString->length > story->length) {
+		string_free(chString);
+		return -1;
+	}
+
+	// int index = 0;
+	for (int i = 0; i < story->length - chString->length; i++) {
+		for (int j = 0; j < chString->length; j++) {
+			if (string_charat(j, chString) == string_charat(i + j, story)) {
+				return i;
+			}
+		}
+	}
+	return -1;
 }
 
 void string_replace(char oldChar, char newChar, string_t *story) {
@@ -346,6 +378,6 @@ void getsa(string_t *story) {
 	}
 }
 
-static int min(int x, int y) {
-	return (x > y) ? y : x;
+static int max(int x, int y) {
+	return (x > y) ? x : y;
 }

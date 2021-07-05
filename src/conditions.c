@@ -63,7 +63,8 @@ void interpret_for(LineInfo *info, VirtualMachine *vm) {
 			initialization);
 
 	string_t *variableName = string_substring(0,
-			vm->setting_equal_operator->length, initialization);
+			string_indexof_s(vm->setting_equal_operator->string,
+					initialization), initialization);
 
 	string_t *valueInString = string_substring(
 			equalsIndex + vm->setting_equal_operator->length,
@@ -191,10 +192,8 @@ void interpret_for(LineInfo *info, VirtualMachine *vm) {
 }
 
 static void snippetInterpreter(VirtualMachine *vm) {
-	int lineCounter = 0;
-	while (lineCounter < vm->vars->lineLength - 1) { // @suppress("Field cannot be resolved")
-		interpret(vm->vars->info[lineCounter], vm); // @suppress("Field cannot be resolved")
-		lineCounter++;
+	for (int line = 0; line < vm->vars->lineLength - 1; line++) { // @suppress("Field cannot be resolved")
+		interpret(vm->vars->info[line], vm); // @suppress("Field cannot be resolved")
 	}
 
 }

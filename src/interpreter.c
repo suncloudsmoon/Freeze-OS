@@ -139,6 +139,7 @@ LineInfo* splitIntoTokens(string_t *line, VirtualMachine *vm) {
 
 		if (letter == '"') {
 			isString = !isString;
+			string_concat_c(letter, temp);
 		} else if (!isString) {
 			if (letter == ',') {
 				lineinfo_addsplits(string_copyvalueof(temp->string), info);
@@ -158,11 +159,18 @@ LineInfo* splitIntoTokens(string_t *line, VirtualMachine *vm) {
 }
 
 bool interpret(LineInfo *info, VirtualMachine *vm) {
+	// New line
+	vm->lineNum++;
 
-	if (string_equalsignorecase(vm->print_special_function_name, info->token)) {
-		interpret_print_special(info);
+	// If the token is end, comment, or a new line character, then don't check the others!
+	if (string_equalsignorecase(vm->end_function_name, info->token)) {
+		return true;
+	} else if (string_equalsignorecase(vm->comment_function_name, info->token)
+			|| string_equalsignorecase(vm->new_line_character, info->token)) {
+		return false;
+	}
 
-	} else if (string_equalsignorecase(vm->print_function_name, info->token)) {
+	if (string_equalsignorecase(vm->print_function_name, info->token)) {
 		interpret_print(info, vm);
 
 	} else if (string_equalsignorecase(vm->write_function_name, info->token)) {
@@ -171,18 +179,9 @@ bool interpret(LineInfo *info, VirtualMachine *vm) {
 	} else if (string_equalsignorecase(vm->for_function_name, info->token)) {
 		interpret_for(info, vm);
 
-	} else if (string_equalsignorecase(vm->end_function_name, info->token)) {
-		vm->lineNum++;
-		return true;
-
-	} else if (string_equalsignorecase(vm->comment_function_name, info->token)
-			|| string_equalsignorecase(vm->new_line_character, info->token)) {
-		// Log or something...
-
 	} else {
 		throwException(SYNTAX_ERROR, NULL);
 	}
-	vm->lineNum++;
 
 	return false;
 }
@@ -191,8 +190,21 @@ void interpret_print(LineInfo *info, VirtualMachine *vm) {
 	for (int i = 0; i < info->restLineLength; i++) {
 		if (getVariableContext(info->restLine[i]) == IS_STRING) {
 			string_t *result = removeQuotes(info->restLine[i]);
-			safe_printf("%s", result->string);
-			string_free(result);
+			for (int j = 0; j < result->length; j++) {
+				char letter = string_charat(j, result);
+				if (letter == 92 && j+1 < result->length) {
+					char escape = string_charat(j+1, result);
+					if (escape == 'n') {
+						printf("\n");
+					} else if (escape == 't') {
+						printf("\t");
+					}
+					j++;
+				} else {
+					safe_printf("%c", letter);
+				}
+
+			}
 		} else {
 			Variable *var = varmanager_parsevariable(info->restLine[i],
 					vm->manager);
@@ -203,27 +215,7 @@ void interpret_print(LineInfo *info, VirtualMachine *vm) {
 				safe_printf("%d", *((int*) var->data));
 			}
 		}
-
 	}
-
-}
-
-void interpret_print_special(LineInfo *info) {
-// Special Characters
-	string_t *newLine = string_copyvalueof("\\n");
-	string_t *tab = string_copyvalueof("\\t");
-
-	string_t *quotesRemoved = removeQuotes(info->restLine[0]);
-	if (string_equalsignorecase(quotesRemoved, newLine)) {
-		printf("\n");
-	} else if (string_equalsignorecase(quotesRemoved, tab)) {
-		printf("\t");
-	}
-
-// Free resources
-	string_free(newLine);
-	string_free(tab);
-	string_free(quotesRemoved);
 }
 
 void interpret_write(LineInfo *info) {
@@ -248,7 +240,7 @@ string_t* removeQuotes(string_t *data) {
 	int firstQuote = string_indexof('"', data);
 	int secondQuote = string_lastindexof('"', data);
 
-	for (int i = firstQuote + 1; i < secondQuote; i++) {
+	for (int i = firstQuote + 1; i <= secondQuote - 1; i++) {
 		string_concat_c(string_charat(i, data), newData);
 	}
 	return newData;

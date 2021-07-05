@@ -1,8 +1,8 @@
 # Freeze-OS
 ![Freeze OS Logo](https://github.com/suncloudsmoon/Freeze-OS/blob/master/Freeze.png)
-Freeze OS is a cross-platform operating system emulator that runs on top of an interpreter called the Freeze interpreter. The operating system code is basically written in the Freeze programming
-language that is passed to the Freeze interpreter. The idea is to skip instances where the operating system needs to handle low level operators and focus on higher level stuff,
-like malware analysis, AI, and others.
+  Freeze OS is a cross-platform operating system emulator that runs on top of an interpreter called the Freeze interpreter. The operating system code is basically written in the     Freeze programming
+  language that is passed to the Freeze interpreter. The idea is to skip instances where the operating system needs to handle low level operators and focus on higher level stuff,
+  like malware analysis, AI, and others.
 
 # How it works
 This project's concept is an expansion of the idea that interpreters are virtual machines. But, interpreters still can

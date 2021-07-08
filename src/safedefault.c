@@ -42,7 +42,7 @@
 void* safe_calloc(size_t elements, size_t type_size) {
 	void *newPointer = calloc(elements, type_size);
 	if (newPointer == NULL)
-		throwException(OTHER_EXCEPTION, NULL);
+		throwException(OTHER_EXCEPTION);
 
 	return newPointer;
 }
@@ -50,7 +50,7 @@ void* safe_calloc(size_t elements, size_t type_size) {
 void* safe_realloc(void *data, size_t extra_size) {
 	void *newPointer = realloc(data, extra_size);
 	if (newPointer == NULL)
-		throwException(OTHER_EXCEPTION, NULL);
+		throwException(OTHER_EXCEPTION);
 
 	return newPointer;
 }
@@ -60,24 +60,19 @@ void* safe_realloc(void *data, size_t extra_size) {
 char safe_fgetc(FILE *stream) {
 	char letter = (char) fgetc(stream); // I don't know if this typecasting is necessary
 	if (ferror(stream) != 0)
-		throwException(OTHER_EXCEPTION, NULL);
+		throwException(OTHER_EXCEPTION);
 
 	return letter;
 }
 
 void safe_strncat(char *dest, size_t destLength, char *src, size_t srcLength) {
-	errno_t errorCode;
-	if ((errorCode = strncat_s(dest, destLength, src,
-			srcLength)) != 0)
-		throwException(OTHER_EXCEPTION, NULL);
+	if (strncat_s(dest, destLength, src, srcLength) != 0)
+		throwException(OTHER_EXCEPTION);
 }
 
-
 void safe_strncpy(char *dest, size_t destLength, char *src, size_t srcLength) {
-	errno_t errorCode;
-	if ((errorCode = strncpy_s(dest, destLength, src,
-			srcLength)) != 0)
-		throwException(OTHER_EXCEPTION, NULL);
+	if (strncpy_s(dest, destLength, src, srcLength) != 0)
+		throwException(OTHER_EXCEPTION);
 }
 
 // File Handling Functions
@@ -85,19 +80,19 @@ void safe_strncpy(char *dest, size_t destLength, char *src, size_t srcLength) {
 FILE* safe_fopen(const char *filepath, const char *mode) {
 	FILE *opened = fopen(filepath, mode);
 	if (opened == NULL)
-		throwException(OTHER_EXCEPTION, NULL);
+		throwException(OTHER_EXCEPTION);
 
 	return opened;
 }
 
 void safe_fputs(const char *str, FILE *stream) {
 	if (fputs(str, stream) == EOF)
-		throwException(OTHER_EXCEPTION, NULL);
+		throwException(OTHER_EXCEPTION);
 }
 
 void safe_fclose(FILE *stream) {
 	if (fclose(stream) == EOF)
-		throwException(OTHER_EXCEPTION, NULL);
+		throwException(OTHER_EXCEPTION);
 }
 
 // Print Functions
@@ -107,7 +102,7 @@ void safe_printf(const char *format, ...) {
 	va_start(args, format);
 
 	if (vprintf(format, args) < 0)
-		throwException(OTHER_EXCEPTION, NULL);
+		throwException(OTHER_EXCEPTION);
 
 	va_end(args);
 }

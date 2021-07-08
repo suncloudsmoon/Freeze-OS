@@ -33,10 +33,14 @@
 #include "vm.h"
 #include "gc.h"
 
-void interpret_varinitialization(string_t *name, string_t *valueInString, VariableManager *vars);
-void interpret_artimetic(string_t *beforeValue, string_t *operator, string_t *afterValue, VariableManager *vars);
+//void interpret_varinitialization(string_t *name, string_t *valueInString, VariableManager *vars);
+//void interpret_artimetic(string_t *beforeValue, string_t *operator, string_t *afterValue, VariableManager *vars);
 
-void interpret_if(LineInfo *info, VirtualMachine *vm);
+// If Loop Functions
+void interpret_full_if_statement(LineInfo *info, VirtualMachine *vm);
+bool ifloop_statement_interpret(LineInfo *info, VirtualMachine *vm);
+
+// For Loop Functions
 void interpret_for(LineInfo *info, VirtualMachine *vm);
 
 #endif /* SRC_CONDITIONS_H_ */

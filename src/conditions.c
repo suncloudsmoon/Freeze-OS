@@ -37,25 +37,250 @@
 #include "safedefault.h"
 #include "interpreter.h"
 
+typedef enum {
+	EQUALS_OPERATOR = 0,
+	GREATER_THAN_OPERATOR = 1,
+	GREATHER_THAN_OR_EQUALS_OPERATOR = 2,
+	LESS_THAN_OPERATOR = 3,
+	LESS_THAN_OR_EQUALS_OPERATOR = 4
+} Operator;
+
+// Keeping it simple
+typedef enum {
+	AND_LOGIC_GATE = 0, OR_LOGIC_GATE = 1
+} LogicGate;
+
+typedef struct {
+	int value1, value2;
+	Operator op;
+} if_vars_t;
+
 static void snippetInterpreter(VirtualMachine *vm);
 
-// Everything is an initialization, include the declaration, which is just something setting to NULL
-void interpret_varinitialization(string_t *name, string_t *valueInString,
-		VariableManager *vars) {
-	// Add to gc
+// If Loop functions
+static void ifloop_readUntilEnd(VirtualMachine *vm);
+static bool ifloop_interpret_values(if_vars_t *vars);
+static LogicGate ifloop_get_logic_gate(string_t *token, VirtualMachine *vm);
+static if_vars_t* ifloop_get_values(string_t *condition, VirtualMachine *vm);
+
+// For Loop Functions
+ForLoop* forloop_init();
+void forloop_free(ForLoop *loop);
+
+// NOTE: Everything is an initialization, include the declaration, which is just something setting to NULL
+
+void interpret_full_if_statement(LineInfo *info, VirtualMachine *vm) {
+
+	bool isAllowed = ifloop_statement_interpret(info, vm);
+	if (isAllowed) {
+		ifloop_readUntilEnd(vm);
+	} else {
+		int readStatus = 0;
+		do {
+			string_t *line = string_init();
+
+			readStatus = readLine(vm->location, line);
+
+			LineInfo *check = splitIntoTokens(line, vm);
+
+			if ((string_equals(check->token, vm->else_condition))
+					|| (string_equals(check->token, vm->else_if_condition)
+							&& ifloop_statement_interpret(check, vm))) {
+				ifloop_readUntilEnd(vm);
+				break;
+			} else if (string_equals(vm->end_function_name, check->token)
+					&& string_equalsignorecase(vm->if_condition, check->restLine[0])) {
+				break;
+			}
+
+			// Freeing resources
+			lineinfo_free(check);
+			string_free(line);
+		} while (readStatus != EOF);
+	}
+
 }
 
-void interpret_artimetic(string_t *beforeValue, string_t *operator,
-		string_t *afterValue, VariableManager *vars) {
+bool ifloop_statement_interpret(LineInfo *info, VirtualMachine *vm) {
+	// If: 5 < 10, AND, 10 < 20
+	bool isAllowed = false;
+	if (info->restLineLength > 1) {
+		for (int token = 0; token < info->restLineLength - 2; token += 2) {
+			// First: like "5 < 10"
+			if_vars_t *vars1 = ifloop_get_values(info->restLine[token], vm);
+			bool eval1 = ifloop_interpret_values(vars1); // Individual statements are evaluated on their own
+
+			// Like: AND
+			LogicGate gate = ifloop_get_logic_gate(info->restLine[token + 1],
+					vm);
+
+			// Second: like 10 < 20
+			if_vars_t *vars2 = ifloop_get_values(info->restLine[token + 2], vm);
+			bool eval2 = ifloop_interpret_values(vars2);
+
+			switch (gate) {
+			case AND_LOGIC_GATE:
+				isAllowed = eval1 && eval2;
+				break;
+			case OR_LOGIC_GATE:
+				isAllowed = eval1 || eval2;
+				break;
+			default:
+				break;
+			}
+
+			// Free Resources
+			free(vars1);
+			free(vars2);
+		}
+	} else {
+		if (info->restLineLength == 0) {
+			return false;
+		}
+		if_vars_t *vars1 = ifloop_get_values(info->restLine[0], vm);
+		isAllowed = ifloop_interpret_values(vars1);
+
+		free(vars1);
+
+	}
+	return isAllowed;
+}
+
+static void ifloop_readUntilEnd(VirtualMachine *vm) {
+	int readStatus = 0;
+	while (true) {
+		string_t *line = string_init();
+
+		readStatus = readLine(vm->location, line);
+
+		LineInfo *info = splitIntoTokens(line, vm);
+
+		if (string_startswith_s(vm->else_if_condition, line)
+				|| string_startswith_s(vm->else_condition, line)
+				|| string_startswith_s(vm->end_function_name, line)) {
+			break;
+		}
+
+		interpret(info, vm);
+
+		// Freeing Resources
+		lineinfo_free(info);
+		string_free(line);
+
+		if (readStatus == EOF) {
+			printf("EOF Exit\n");
+			exit(0);
+		}
+	}
 
 }
 
-void interpret_if(LineInfo *info, VirtualMachine *vm) {
+static bool ifloop_interpret_values(if_vars_t *vars) {
+	switch (vars->op) {
+	case EQUALS_OPERATOR:
+		return vars->value1 == vars->value2;
+	case GREATER_THAN_OPERATOR:
+		return vars->value1 > vars->value2;
+	case LESS_THAN_OPERATOR:
+		return vars->value1 < vars->value2;
+	case GREATHER_THAN_OR_EQUALS_OPERATOR:
+		return vars->value1 >= vars->value2;
+	case LESS_THAN_OR_EQUALS_OPERATOR:
+		return vars->value1 <= vars->value2;
+	default:
+		return false;
+	}
 
+}
+
+static LogicGate ifloop_get_logic_gate(string_t *token, VirtualMachine *vm) {
+	LogicGate gate;
+	if (string_equals(token, vm->and_logic_gate)) {
+		gate = AND_LOGIC_GATE;
+
+	} else if (string_equals(token, vm->or_logic_gate)) {
+		gate = OR_LOGIC_GATE;
+
+	} else {
+		throwException(OTHER_EXCEPTION);
+	}
+
+	return gate;
+}
+
+static if_vars_t* ifloop_get_values(string_t *condition, VirtualMachine *vm) {
+	if_vars_t *values = (if_vars_t*) safe_calloc(1, sizeof(if_vars_t));
+
+	string_t *tempOperator; // Is this a memory leak?
+	if (string_contains_s(vm->equals_operator, condition)) {
+		values->op = EQUALS_OPERATOR;
+		tempOperator = vm->equals_operator;
+
+	} else if (string_contains_s(vm->greater_than_or_equals_operator,
+			condition)) {
+		values->op = GREATHER_THAN_OR_EQUALS_OPERATOR;
+		tempOperator = vm->greater_than_or_equals_operator;
+
+	} else if (string_contains_s(vm->less_than_or_equals_operator, condition)) {
+		values->op = LESS_THAN_OR_EQUALS_OPERATOR;
+		tempOperator = vm->less_than_or_equals_operator;
+
+	} else if (string_contains_s(vm->greater_than_operator, condition)) {
+		values->op = GREATER_THAN_OPERATOR;
+		tempOperator = vm->greater_than_operator;
+
+	} else if (string_contains_s(vm->less_than_operator, condition)) {
+		values->op = LESS_THAN_OPERATOR;
+		tempOperator = vm->less_than_operator;
+	}
+
+	int conditionIndex = string_indexof_s(tempOperator->string, condition);
+
+	string_t *first = string_substring(0, conditionIndex, condition);
+	string_t *second = string_substring(conditionIndex + tempOperator->length,
+			condition->length, condition);
+
+	// First part of the condition
+	if (getVariableContext(first) == IS_STRING) {
+		// Do something
+	} else {
+		Variable *var = varmanager_parsevariable(first, vm->manager);
+		if (var == NULL) {
+			// It must be a number, no exceptions for now
+			values->value1 = strtol(first->string, NULL, 10);
+		} else {
+			if (var->type == INTEGER_TYPE) {
+				values->value1 = *((int*) var->data);
+			} else {
+				throwException(OTHER_EXCEPTION);
+			}
+
+		}
+	}
+
+	// Second part of the condition
+	if (getVariableContext(second) == IS_STRING) {
+		// Do something
+	} else {
+		Variable *var = varmanager_parsevariable(second, vm->manager);
+		if (var == NULL) {
+			// It must be a number, no exceptions for now
+			values->value2 = strtol(second->string, NULL, 10);
+		} else {
+			if (var->type == INTEGER_TYPE) {
+				values->value2 = *((int*) var->data);
+			} else {
+				throwException(OTHER_EXCEPTION);
+			}
+
+		}
+	}
+
+	return values;
 }
 
 void interpret_for(LineInfo *info, VirtualMachine *vm) {
-	vm->vars = (ForLoop*) calloc(1, sizeof(ForLoop));
+	vm->vars = forloop_init();
 
 // i -> 0 (like i = 0)
 	string_t *initialization = info->restLine[0];
@@ -85,9 +310,9 @@ void interpret_for(LineInfo *info, VirtualMachine *vm) {
 	if (string_contains_s(vm->equals_operator, condition)) {
 		string_concat_s(vm->equals_operator, operator);
 
-	} else if (string_contains_s(vm->greather_than_or_equals_operator,
+	} else if (string_contains_s(vm->greater_than_or_equals_operator,
 			condition)) {
-		string_concat_s(vm->greather_than_or_equals_operator, operator);
+		string_concat_s(vm->greater_than_or_equals_operator, operator);
 
 	} else if (string_contains_s(vm->less_than_or_equals_operator, condition)) {
 		string_concat_s(vm->less_than_or_equals_operator, operator);
@@ -103,7 +328,7 @@ void interpret_for(LineInfo *info, VirtualMachine *vm) {
 	int conditionIndex = string_indexof_s(operator->string, condition);
 	string_t *conditionValue;
 	if (string_equals(vm->less_than_or_equals_operator, operator)
-			|| string_equals(vm->greather_than_or_equals_operator, operator)) {
+			|| string_equals(vm->greater_than_or_equals_operator, operator)) {
 		conditionValue = string_substring(conditionIndex + 2, condition->length,
 				condition);
 	} else {
@@ -127,7 +352,6 @@ void interpret_for(LineInfo *info, VirtualMachine *vm) {
 
 	// Reading lines inside the for loop
 	int readStatus = 0;
-	string_t *threeLetters;
 	do {
 		string_t *line = string_init();
 		readStatus = readLine(vm->location, line);
@@ -139,19 +363,22 @@ void interpret_for(LineInfo *info, VirtualMachine *vm) {
 			vm->vars->allocatedLineLength += 10; // @suppress("Field cannot be resolved")
 		}
 
-		threeLetters = string_substring(0, 3, line);
-
 		vm->vars->lineLength++; // @suppress("Field cannot be resolved")
 		vm->vars->info[vm->vars->lineLength - 1] = splitIntoTokens(line, vm); // @suppress("Field cannot be resolved")
 
+		if (string_equals(vm->end_function_name,
+				vm->vars->info[vm->vars->lineLength - 1]->token)
+				&& string_equalsignorecase(vm->for_function_name,
+						vm->vars->info[vm->vars->lineLength - 1]->restLine[0])) {
+			break;
+		}
 		string_free(line);
 
-	} while (readStatus != EOF
-			&& !string_equalsignorecase(vm->end_function_name, threeLetters));
+	} while (readStatus != EOF);
 
 	// Reading from existing lines
 	long *i = vm->vars->i;
-	if (string_equals(vm->vars->condition, vm->greater_than_operator)) {
+	if (string_equals(vm->vars->condition, vm->less_than_operator)) {
 		for (; *i < vm->vars->conditionArgument; *i += vm->vars->increment) {
 			snippetInterpreter(vm);
 		}
@@ -168,7 +395,7 @@ void interpret_for(LineInfo *info, VirtualMachine *vm) {
 		}
 
 	} else if (string_equals(vm->vars->condition,
-			vm->greather_than_or_equals_operator)) {
+			vm->greater_than_or_equals_operator)) {
 		// ) is the same thing as >=, but in a shorter form
 		for (; *i >= vm->vars->conditionArgument; *i += vm->vars->increment) {
 			snippetInterpreter(vm);
@@ -185,6 +412,8 @@ void interpret_for(LineInfo *info, VirtualMachine *vm) {
 		lineinfo_free(vm->vars->info[i]); // @suppress("Field cannot be resolved")
 	}
 
+	// forloop_free(vm->vars);
+
 	if (readStatus == EOF) {
 		printf("\nEncountered a EOF, exiting the program!\n");
 		exit(0);
@@ -196,4 +425,19 @@ static void snippetInterpreter(VirtualMachine *vm) {
 		interpret(vm->vars->info[line], vm); // @suppress("Field cannot be resolved")
 	}
 
+}
+
+ForLoop* forloop_init() {
+	ForLoop *loop = (ForLoop*) safe_calloc(1, sizeof(ForLoop));
+	return loop;
+}
+
+void forloop_free(ForLoop *loop) {
+	// TODO: Use a local variable manager inside the for loop and free it when done after the scope!
+	for (int i = 0; i < loop->lineLength; i++) { // @suppress("Field cannot be resolved")
+		lineinfo_free(loop->info[i]); // @suppress("Field cannot be resolved")
+	}
+	string_free(loop->condition);
+	free(loop->i);
+	free(loop);
 }

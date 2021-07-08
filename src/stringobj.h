@@ -53,8 +53,11 @@ bool string_equalsignorecase(string_t *one, string_t *story);
 
 string_t* string_copyvalueof(char *text);
 
+// Starts With Functions
 bool string_startswith(char *suffix, string_t *story);
 bool string_startswith_s(string_t *suffix, string_t *story);
+bool string_startswith_ignorecase_s(string_t *suffix, string_t *story);
+
 bool string_endswith(char *suffix, string_t *story);
 bool string_endswith_s(string_t *suffix, string_t *story);
 
@@ -81,7 +84,7 @@ string_t* string_substring(int beginIndex, int endIndex, string_t *story);
 
 string_t** string_split(char *regex, string_t *story);
 
-string_t* string_tolowercase(string_t *story);
+void string_tolowercase(string_t *story);
 
 void string_free(string_t *story);
 

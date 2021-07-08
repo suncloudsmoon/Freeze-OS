@@ -32,6 +32,9 @@
  * TODO: Implement a designated amount of programs allowed to run at one (including background) as RAM, if more, then use paging
  * TODO: Implement multi-threading in the OS
  * TODO: When assigning variables - x = 5, y = 0, x = y, the x has the same pointer as y, so if y = 10, x = 10
+ * TODO: Make a command, like "Music: sin of 30" that creates a wav file and then plays it if "play: "latest song""
+ * TODO: Instead of C plugin to the Freeze Language, it will rely instead on a Javascript interpreter for things other than Freeze
+ * TODO Optional: If there is a syntax error or a security loophole in Freeze code, let machine learning "auto-patch" it by modifying the software?
  */
 
 /*
@@ -84,6 +87,7 @@ void ignition(VirtualMachine *vm) {
 		printf("Interpreted a line!\n");
 
 		lineinfo_free(info);
+		string_free(line);
 
 	} while (readStatus != EOF);
 
@@ -108,9 +112,6 @@ LineInfo* splitIntoTokens(string_t *line, VirtualMachine *vm) {
 	if (string_startswith_s(vm->comment_function_name, line)) {
 		info->token = vm->comment_function_name;
 		return info;
-	} else if (string_startswith_s(vm->new_line_character, line)) {
-		info->token = vm->new_line_character;
-		return info;
 	}
 
 	int colonIndex = string_indexof(':', line);
@@ -119,12 +120,13 @@ LineInfo* splitIntoTokens(string_t *line, VirtualMachine *vm) {
 	//printf("\nColon Index: %d\n", colonIndex);
 
 // Safety First!
-	if (colonIndex == 0) {
-		throwException(SYNTAX_ERROR, vm);
+	if (colonIndex <= 0) {
+		throwException(SYNTAX_ERROR);
 	}
 
 	// Getting the token
 	info->token = string_substring(0, colonIndex, line);
+	string_tolowercase(info->token);
 
 	// Allocates & reads the rest of line
 	info->restLine = (string_t**) calloc(10, sizeof(string_t*));
@@ -144,7 +146,7 @@ LineInfo* splitIntoTokens(string_t *line, VirtualMachine *vm) {
 			if (letter == ',') {
 				lineinfo_addsplits(string_copyvalueof(temp->string), info);
 				string_set("", temp);
-				// previousStartingIndex = i;
+
 			} else if (letter != ' ') {
 				string_concat_c(letter, temp);
 			}
@@ -163,24 +165,27 @@ bool interpret(LineInfo *info, VirtualMachine *vm) {
 	vm->lineNum++;
 
 	// If the token is end, comment, or a new line character, then don't check the others!
-	if (string_equalsignorecase(vm->end_function_name, info->token)) {
+	if (string_equals(vm->end_function_name, info->token)
+			|| string_equals(vm->comment_function_name, info->token)
+			|| string_equals(vm->new_line_character, info->token)) {
 		return true;
-	} else if (string_equalsignorecase(vm->comment_function_name, info->token)
-			|| string_equalsignorecase(vm->new_line_character, info->token)) {
-		return false;
 	}
 
-	if (string_equalsignorecase(vm->print_function_name, info->token)) {
-		interpret_print(info, vm);
+	// Conditions first!
+	if (string_equals(vm->if_condition, info->token)) {
+		interpret_full_if_statement(info, vm);
 
-	} else if (string_equalsignorecase(vm->write_function_name, info->token)) {
-		interpret_write(info);
-
-	} else if (string_equalsignorecase(vm->for_function_name, info->token)) {
+	} else if (string_equals(vm->for_function_name, info->token)) {
 		interpret_for(info, vm);
 
+	} else if (string_equals(vm->print_function_name, info->token)) {
+		interpret_print(info, vm);
+
+	} else if (string_equals(vm->write_function_name, info->token)) {
+		interpret_write(info);
+
 	} else {
-		throwException(SYNTAX_ERROR, NULL);
+		throwException(SYNTAX_ERROR);
 	}
 
 	return false;
@@ -192,8 +197,8 @@ void interpret_print(LineInfo *info, VirtualMachine *vm) {
 			string_t *result = removeQuotes(info->restLine[i]);
 			for (int j = 0; j < result->length; j++) {
 				char letter = string_charat(j, result);
-				if (letter == 92 && j+1 < result->length) {
-					char escape = string_charat(j+1, result);
+				if (letter == 92 && j + 1 < result->length) {
+					char escape = string_charat(j + 1, result);
 					if (escape == 'n') {
 						printf("\n");
 					} else if (escape == 't') {

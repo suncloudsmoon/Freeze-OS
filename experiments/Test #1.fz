@@ -1,3 +1,3 @@
-FOR: i -> 0, i <= 10, i + 1
-PRINT: "Hello\n"
-END
+IF: 10 > 5
+PRINT: "Hello, World\n"
+END: IF

@@ -36,6 +36,7 @@
 #include "vm.h"
 #include "gc.h"
 #include "stringobj.h"
+#include "safedefault.h"
 
 static VirtualMachine *predefinedVM;
 
@@ -55,7 +56,7 @@ VirtualMachine* vm_init(FILE *stream) {
 
 	// Set up the error system
 	predefinedVM = vm; // Is this a memory leak?
-	throwException(0, NULL);
+	throwException(0);
 
 	// Freeze Programming Language Definitions //
 
@@ -69,12 +70,21 @@ VirtualMachine* vm_init(FILE *stream) {
 	// Operators
 	vm->equals_operator = string_copyvalueof("==");
 	vm->greater_than_operator = string_copyvalueof(">");
-	vm->greather_than_or_equals_operator = string_copyvalueof(">=");
+	vm->greater_than_or_equals_operator = string_copyvalueof(">=");
 	vm->less_than_operator = string_copyvalueof("<");
 	vm->less_than_or_equals_operator = string_copyvalueof("<=");
 
-	vm->addition_operator = string_copyvalueof("+");
+	// Conditions
+	vm->if_condition = string_copyvalueof("if");
+	vm->else_if_condition = string_copyvalueof("what if");
+	vm->else_condition = string_copyvalueof("otherwise");
 
+	// Sounds crazy to use words instead of like && or ||, but I am just experimenting :)
+	vm->and_logic_gate = string_copyvalueof("AND");
+	vm->or_logic_gate = string_copyvalueof("OR");
+
+	// Addition, subtraction, and other variable related items
+	vm->addition_operator = string_copyvalueof("+");
 	vm->setting_equal_operator = string_copyvalueof("->");
 
 	// General Ones
@@ -95,8 +105,7 @@ void vm_free(VirtualMachine *vm) {
 
 ////////////////// Exception Handling /////////////////////
 
-void throwException(RuntimeException exception, const VirtualMachine *vm) {
-
+void throwException(RuntimeException exception) {
 // print like Line #%d: (predefined message) and custom message\n
 	switch (exception) {
 	case BUFFER_OVERFLOW:
@@ -135,12 +144,13 @@ void throwException(RuntimeException exception, const VirtualMachine *vm) {
 }
 
 static void exceptionPrinter(int lineNum, char *message, bool isErrno) {
-	char temp[BUFSIZ];
-
 	if (isErrno) {
+		char temp[BUFSIZ];
 		sprintf(temp, "Error on Line #%d", lineNum);
 		perror(temp);
 	} else {
+		if (message == NULL)
+			return;
 		printf("Error on Line #%d: %s\n", lineNum, message);
 	}
 

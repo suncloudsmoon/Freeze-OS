@@ -35,6 +35,8 @@
 #include "gc.h"
 #include "stringobj.h"
 
+#define MANAGER_ALLOC_SIZE 10
+
 // Exception Definitions
 typedef enum {
 	BUFFER_OVERFLOW = -5,
@@ -65,10 +67,20 @@ typedef struct Loop {
 typedef struct {
 	struct Loop;
 
+	// int i = 0
+	string_t *iName;
 	long *i;
+
+	// i < 5
 	string_t *condition;
 	long conditionArgument;
+
+	// i++
 	long increment;
+
+	// Id
+	int forLoopOrigin;
+	int forLoopCounter;
 } ForLoop;
 
 typedef struct {
@@ -99,17 +111,21 @@ typedef struct {
 	ForLoop *vars;
 
 	// Language stuff
-	string_t *print_function_name, *write_function_name, *for_function_name,
-			*end_function_name, *print_special_function_name;
+	string_t *print_function_name, *write_function_name, *for_function_name, *print_special_function_name;
 
 	// Operators
 	string_t *equals_operator, *greater_than_operator,
-			*greather_than_or_equals_operator, *less_than_operator,
+			*greater_than_or_equals_operator, *less_than_operator,
 			*less_than_or_equals_operator;
 
-	string_t *addition_operator;
+	string_t *end_function_name;
 
-	string_t *setting_equal_operator;
+	string_t *if_condition, *else_if_condition, *else_condition;
+
+	// Logic Gates
+	string_t *and_logic_gate, *or_logic_gate;
+
+	string_t *addition_operator, *setting_equal_operator;
 
 	string_t *comment_function_name, *new_line_character;
 
@@ -120,6 +136,6 @@ void vm_free(VirtualMachine *vm);
 
 // Exception functions
 // Handling errors, creating safety
-void throwException(RuntimeException exception, const VirtualMachine *vm);
+void throwException(RuntimeException exception);
 
 #endif /* SRC_VM_H_ */

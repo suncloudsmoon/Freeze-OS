@@ -30,30 +30,25 @@
 #include "vm.h"
 #include "interpreter.h"
 
-#define PATHSIZE 2048
-
 void testeverything();
 
 // What do the arguments mean exactly?
 int main(int argc, char **argv) {
 	const char *defaultTest = "experiments\\Test #1.fz";
-	char testFile[PATHSIZE];
 
 	FILE *test = stdin;
 
 	/* If we are passed an argument, treat it as an input file name */
 	if (argc > 1) {
-		strncpy(testFile, argv[1], PATHSIZE);
-		test = fopen(testFile, "r");
+		test = fopen(argv[1], "r");
 
-	} else if (defaultTest != NULL) {
-		strncpy(testFile, defaultTest, PATHSIZE);
-		test = fopen(testFile, "r");
+	} else {
+		test = fopen(defaultTest, "r");
 	}
 
 	/* Check for fopen failure */
 	if (test == NULL) {
-		perror(testFile);
+		perror("Failed to open interpreter file: ");
 		exit(EXIT_FAILURE);
 	}
 
@@ -66,7 +61,7 @@ int main(int argc, char **argv) {
 		fclose(test);
 	}
 
-	// For now
+	// Unit Testing?
 	//	testeverything();
 
 	return 0;

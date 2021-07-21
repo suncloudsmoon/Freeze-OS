@@ -33,8 +33,8 @@
 
 #include <string.h>
 
-#include "test.h"
-#include "stringobj.h"
+#include "../include/test.h"
+#include "../include/stringobj.h"
 
 static void substringStuff();
 

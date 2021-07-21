@@ -45,12 +45,13 @@ char safe_fgetc(FILE *stream);
 /*
  * Throws an exception if strncat returns a negative value
  */
-void safe_strncat(char *dest, size_t destLength, char *src, size_t srcLength);
-void safe_strncpy(char *dest, size_t destLength, char *src, size_t srcLength);
+void safe_strncat(char *dest, char *src, int destAllocatedLength, int srcLength);
+void safe_strncpy(char *dest, char *src, int destAllocatedLength);
 
 // File Handling Functions
 FILE* safe_fopen(const char *filepath, const char *mode);
 void safe_fputs(const char *str, FILE *stream);
+void safe_fprintf(FILE *stream, const char *format, ...);
 void safe_fclose(FILE *stream);
 
 // Print Functions

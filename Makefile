@@ -11,7 +11,7 @@ OBJECTS  := $(SRC:%.c=$(OBJ_DIR)%.o)
 
 all: build freezeos
 
-$(OBJ_DIR)%.o: %.c
+$(OBJ_DIR)%.o: src/%.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -o $@ -c $<
 

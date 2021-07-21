@@ -34,8 +34,8 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "safedefault.h"
-#include "vm.h"
+#include "../include/safedefault.h"
+#include "../include/vm.h"
 
 // Memory Safety Functions
 
@@ -65,13 +65,13 @@ char safe_fgetc(FILE *stream) {
 	return letter;
 }
 
-void safe_strncat(char *dest, size_t destLength, char *src, size_t srcLength) {
-	if (strncat_s(dest, destLength, src, srcLength) != 0)
+void safe_strncat(char *dest, char *src, int destAllocatedLength, int srcLength) {
+	if (strncat(dest, src, destAllocatedLength - srcLength) != 0)
 		throwException(OTHER_EXCEPTION);
 }
 
-void safe_strncpy(char *dest, size_t destLength, char *src, size_t srcLength) {
-	if (strncpy_s(dest, destLength, src, srcLength) != 0)
+void safe_strncpy(char *dest, char *src, int destAllocatedLength) {
+	if (strncpy(dest, src, destAllocatedLength) != 0)
 		throwException(OTHER_EXCEPTION);
 }
 
@@ -88,6 +88,16 @@ FILE* safe_fopen(const char *filepath, const char *mode) {
 void safe_fputs(const char *str, FILE *stream) {
 	if (fputs(str, stream) == EOF)
 		throwException(OTHER_EXCEPTION);
+}
+
+void safe_fprintf(FILE *stream, const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+
+	if (vfprintf(stream, format, args) < 0)
+		throwException(OTHER_EXCEPTION);
+
+	va_end(args);
 }
 
 void safe_fclose(FILE *stream) {

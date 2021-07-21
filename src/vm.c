@@ -33,10 +33,10 @@
 
 #include <errno.h>
 
-#include "vm.h"
-#include "gc.h"
-#include "stringobj.h"
-#include "safedefault.h"
+#include "../include/vm.h"
+#include "../include/gc.h"
+#include "../include/stringobj.h"
+#include "../include/safedefault.h"
 
 static VirtualMachine *predefinedVM;
 
@@ -105,8 +105,11 @@ void vm_free(VirtualMachine *vm) {
 
 ////////////////// Exception Handling /////////////////////
 
+// TODO: Change the throwException() method to make it also accept a custom message or NULL for no message
 void throwException(RuntimeException exception) {
-// print like Line #%d: (predefined message) and custom message\n
+	// TODO: make sure that if there is an error, to return a type if the user wants to try catch it
+
+	// print like Line #%d: (predefined message) and custom message\n
 	switch (exception) {
 	case BUFFER_OVERFLOW:
 		exceptionPrinter(predefinedVM->lineNum,
@@ -131,6 +134,11 @@ void throwException(RuntimeException exception) {
 		exceptionPrinter(predefinedVM->lineNum, "A syntax error has occurred",
 		false);
 		waitToExit(exception);
+		break;
+	case TYPE_MISMATCH:
+		exceptionPrinter(predefinedVM->lineNum,
+				"Incorrect type used in the function!", false);
+		waitToExit(0);
 		break;
 	case OTHER_EXCEPTION:
 		exceptionPrinter(predefinedVM->lineNum, NULL,

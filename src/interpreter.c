@@ -52,112 +52,24 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "interpreter.h"
-#include "vm.h"
-#include "gc.h"
-#include "conditions.h"
-#include "stringobj.h"
-#include "safedefault.h"
+#include "../include/interpreter.h"
+#include "../include/vm.h"
+#include "../include/gc.h"
+#include "../include/conditions.h"
+#include "../include/parser.h"
+#include "../include/stringobj.h"
+#include "../include/safedefault.h"
 
 //////////// The Process Cycle of the Interpreter /////////////////////
 void ignition(VirtualMachine *vm) {
-
-	// Debug
 	printf("Ignition Started!\n");
 
-	int readStatus = 0;
-	do {
-		string_t *line = string_init();
-		readStatus = readLine(vm->location, line);
+	// First, we read all lines from file stream and parse it into a bunch of tokens
+	readAllLines(vm);
 
-		// Debug
-		printf("All Characters from File Stream: %s\n", line->string);
-
-		LineInfo *info = splitIntoTokens(line, vm);
-
-		// Debug
-		printf("Split Tokens from line!\n");
-
-		// Debug new line characters
-		printf("\n");
-		interpret(info, vm);
-		printf("\n\n");
-
-		// Debug
-		printf("Interpreted a line!\n");
-
-		lineinfo_free(info);
-		string_free(line);
-
-	} while (readStatus != EOF);
-
-}
-
-int readLine(FILE *stuff, string_t *line) {
-	while (true) {
-		char letter = safe_fgetc(stuff);
-
-		if (letter == '\n' || letter == EOF) {
-			return letter;
-		}
-		string_concat_c(letter, line);
-
+	while (vm->lineNum < vm->code_manager->parsed_code_length) {
+		interpret(vm->code_manager->parsed_code[vm->lineNum], vm);
 	}
-}
-
-LineInfo* splitIntoTokens(string_t *line, VirtualMachine *vm) {
-
-	LineInfo *info = lineinfo_init();
-
-	if (string_startswith_s(vm->comment_function_name, line)) {
-		info->token = vm->comment_function_name;
-		return info;
-	}
-
-	int colonIndex = string_indexof(':', line);
-
-// Debug
-	//printf("\nColon Index: %d\n", colonIndex);
-
-// Safety First!
-	if (colonIndex <= 0) {
-		throwException(SYNTAX_ERROR);
-	}
-
-	// Getting the token
-	info->token = string_substring(0, colonIndex, line);
-	string_tolowercase(info->token);
-
-	// Allocates & reads the rest of line
-	info->restLine = (string_t**) calloc(10, sizeof(string_t*));
-	info->restLineAllocatedLength = 10;
-	info->restLineLength = 0;
-
-	bool isString = false;
-	// int previousStartingIndex = colonIndex + 1;
-	string_t *temp = string_init();
-	for (int i = colonIndex + 1; i < line->length; i++) {
-		char letter = string_charat(i, line);
-
-		if (letter == '"') {
-			isString = !isString;
-			string_concat_c(letter, temp);
-		} else if (!isString) {
-			if (letter == ',') {
-				lineinfo_addsplits(string_copyvalueof(temp->string), info);
-				string_set("", temp);
-
-			} else if (letter != ' ') {
-				string_concat_c(letter, temp);
-			}
-
-		} else {
-			string_concat_c(letter, temp);
-		}
-	}
-	lineinfo_addsplits(string_copyvalueof(temp->string), info);
-
-	return info;
 }
 
 bool interpret(LineInfo *info, VirtualMachine *vm) {
@@ -185,6 +97,7 @@ bool interpret(LineInfo *info, VirtualMachine *vm) {
 		interpret_write(info);
 
 	} else {
+		// none of the functions defined in vm are not found
 		throwException(SYNTAX_ERROR);
 	}
 
@@ -193,12 +106,17 @@ bool interpret(LineInfo *info, VirtualMachine *vm) {
 
 void interpret_print(LineInfo *info, VirtualMachine *vm) {
 	for (int i = 0; i < info->restLineLength; i++) {
-		if (getVariableContext(info->restLine[i]) == IS_STRING) {
-			string_t *result = removeQuotes(info->restLine[i]);
-			for (int j = 0; j < result->length; j++) {
-				char letter = string_charat(j, result);
-				if (letter == 92 && j + 1 < result->length) {
-					char escape = string_charat(j + 1, result);
+		parsed_arg_context_t *arg_context = parse_arg(info->restLine[i], vm);
+
+		switch (arg_context->type) {
+		case STRING_ARGUMENT_TYPE:
+			string_t *raw_quote = (string_t*) arg_context->data;
+
+			for (int j = 0; j < raw_quote->length; j++) {
+				char letter = string_charat(j, raw_quote);
+
+				if (letter == 92 && j + 1 < raw_quote->length) {
+					char escape = string_charat(j + 1, raw_quote);
 					if (escape == 'n') {
 						printf("\n");
 					} else if (escape == 't') {
@@ -210,45 +128,56 @@ void interpret_print(LineInfo *info, VirtualMachine *vm) {
 				}
 
 			}
-		} else {
-			Variable *var = varmanager_parsevariable(info->restLine[i],
-					vm->manager);
-			if (var == NULL) {
-				return;
-			}
-			if (var->type == INTEGER_TYPE) {
-				safe_printf("%d", *((int*) var->data));
-			}
+			break;
+		case VARIABLE_ARGUMENT_TYPE:
+			// %ld for printing long int
+			safe_printf("%ld",
+					(long int*) ((Variable*) arg_context->data)->data);
+			break;
+		default:
+			break;
 		}
 	}
 }
 
-void interpret_write(LineInfo *info) {
-// Don't know if info->restLine[0] exists tho??
-// Getting the file path
-	string_t *filePath = removeQuotes(info->restLine[0]);
-	FILE *writing = safe_fopen(filePath->string, "w");
+void interpret_write(LineInfo *info, VirtualMachine *vm) {
+	// TODO: check if info->restLine[0] even exists
 
-// Getting the data to be written to file
-	string_t *plainText = removeQuotes(info->restLine[1]);
-	safe_fputs(plainText->string, writing);
+	// Getting the file path
+	parsed_arg_context_t *file_path_context = parse_arg(info->restLine[0], vm);
 
-// Freeing resources
-	safe_fclose(writing);
-	string_free(filePath);
-	string_free(plainText);
-}
+	// Type Safety
+	if (file_path_context->type != STRING_ARGUMENT_TYPE)
+		throwException(TYPE_MISMATCH);
 
-// Removes quotes from strings
-string_t* removeQuotes(string_t *data) {
-	string_t *newData = string_init();
-	int firstQuote = string_indexof('"', data);
-	int secondQuote = string_lastindexof('"', data);
+	FILE *file = safe_fopen((string_t*) file_path_context->data, "w");
 
-	for (int i = firstQuote + 1; i <= secondQuote - 1; i++) {
-		string_concat_c(string_charat(i, data), newData);
+	// Getting the data to be written to file
+	parsed_arg_context_t *plain_text_context = parse_arg(info->restLine[1], vm);
+
+	switch (plain_text_context->type) {
+	case STRING_ARGUMENT_TYPE:
+		safe_fputs(((string_t*) plain_text_context->data)->string, file);
+		break;
+	case VARIABLE_ARGUMENT_TYPE:
+		Variable *var = (Variable *) plain_text_context->data; // Is var a dangling pointer?
+		safe_fprintf(file, "%ld", *((long int *) var->data)); // * for deallocating the long int
+		break;
+	default:
+		break; // or throw exception
 	}
-	return newData;
+
+	// Free resources //
+
+	fclose(file); // close the file first
+
+	// free file_path_context
+	string_free((string_t *) file_path_context->data);
+	free(file_path_context);
+
+	// free plain_text_context
+	string_free((string_t *) plain_text_context->data);
+	free(plain_text_context);
 }
 
 ////////////////// Line Info Stuff ///////////////////////

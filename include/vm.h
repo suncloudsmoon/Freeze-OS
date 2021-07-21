@@ -33,6 +33,7 @@
 #include <stdbool.h>
 
 #include "gc.h"
+#include "../deps/tinyexpr/tinyexpr.h"
 #include "stringobj.h"
 
 #define MANAGER_ALLOC_SIZE 10
@@ -44,8 +45,22 @@ typedef enum {
 	INTEGER_OUT_OF_BOUNDS = -15,
 	NULL_POINTER = -20,
 	SYNTAX_ERROR = -25,
-	OTHER_EXCEPTION = -30
+	TYPE_MISMATCH = -30,
+	OTHER_EXCEPTION = -35
 } RuntimeException;
+
+typedef enum {
+	EQUALS_OPERATOR = 0,
+	GREATER_THAN_OPERATOR = 1,
+	GREATHER_THAN_OR_EQUALS_OPERATOR = 2,
+	LESS_THAN_OPERATOR = 3,
+	LESS_THAN_OR_EQUALS_OPERATOR = 4
+} Operator;
+
+// Keeping it simple
+typedef enum {
+	AND_LOGIC_GATE = 0, OR_LOGIC_GATE = 1
+} LogicGate;
 
 typedef struct {
 	string_t *token;
@@ -56,41 +71,50 @@ typedef struct {
 	int restLineAllocatedLength;
 } LineInfo;
 
-// The abstract or parent class called "Loop" that is meant to be extended by for and while loops
-typedef struct Loop {
-	LineInfo **info;
-
-	int lineLength;
-	int allocatedLineLength;
-} Loop;
+typedef struct {
+	long int *value1, *value2;
+	Operator op;
+} if_vars_t;
 
 typedef struct {
-	struct Loop;
 
 	// int i = 0
 	string_t *iName;
 	long *i;
 
 	// i < 5
-	string_t *condition;
-	long conditionArgument;
+	if_vars_t *condition;
 
 	// i++
 	long increment;
 
-	// Id
-	int forLoopOrigin;
-	int forLoopCounter;
-} ForLoop;
+} for_loop_t;
+
+typedef struct {
+	for_loop_t **loops;
+
+	int loops_allocated_length;
+	int loops_length;
+
+	// What is our current loop?
+	int loopCounter;
+} for_loop_manager_t;
 
 typedef struct {
 	string_t *name; // like "print"
-	ArgumentType arguments[ARGUMENTLIMIT];
+	Type arguments[ARGUMENTLIMIT];
 	ReturnType returnType;
 
 	// Counters
 	int currentArgumentIndex;
 } Method;
+
+typedef struct {
+	LineInfo **parsed_code;
+
+	int parsed_code_allocated_length;
+	int parsed_code_length;
+} parsed_code_manager;
 
 // The virtual machine is very much tied to the design of the operating system
 // Can create/destroy VMs via this way
@@ -100,18 +124,22 @@ typedef struct {
 			*userDirRecycleBin;
 
 	FILE *location, *logFile;
+	parsed_code_manager *code_manager;
+
 	int lineNum;
 
+	// Manages the variables & garbage collection (not implemented yet)
 	VariableManager *manager;
 
 	Method **methods;
 	int numMethods;
 
 	// Loop Stuff
-	ForLoop *vars;
+	for_loop_manager_t *loop_manager;
 
 	// Language stuff
-	string_t *print_function_name, *write_function_name, *for_function_name, *print_special_function_name;
+	string_t *print_function_name, *write_function_name, *for_function_name,
+			*print_special_function_name;
 
 	// Operators
 	string_t *equals_operator, *greater_than_operator,

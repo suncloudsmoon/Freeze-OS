@@ -21,14 +21,19 @@
  */
 
 /*
- * os.c
+ * bytecode.h
  *
- *  Created on: Jul 3, 2021
+ *  Created on: Jul 4, 2021
  *      Author: suncloudsmoon
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
+#ifndef SRC_BYTECODE_H_
+#define SRC_BYTECODE_H_
 
-#include "../include/os.h"
+#include "vm.h"
+
+parsed_code_manager *codemanager_init();
+void codemanager_add(LineInfo *info, parsed_code_manager *manager);
+void codemanager_free(parsed_code_manager *manager);
+
+#endif /* SRC_BYTECODE_H_ */

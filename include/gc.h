@@ -34,28 +34,18 @@
 
 #define ARGUMENTLIMIT 1000
 
-typedef enum Type {
-	INTEGER_TYPE = 1, FLOAT_TYPE = 2, OBJECT_TYPE = 3, NULL_TYPE = 4
-} Type;
-
-typedef enum {
-	INTEGER_ARGUMENT_TYPE = 1,
-	FLOAT_ARGUMENT_TYPE = 2,
-	OBJECT_ARGUMENT_TYPE = 3,
-	VARARGS_ARGUMENT_TYPE = 4 // String is also an object like Java
-} ArgumentType;
-
 typedef enum {
 	VOID_RETURN_TYPE = 0,
-	INTEGER_RETURN_TYPE = 1,
-	FLOAT_RETURN_TYPE = 2,
-	OBJECT_RETURN_TYPE = 3
+	VARIABLE_RETURN_TYPE = 1,
+	STRING_RETURN_TYPE = 2,
+	OBJECT_RETURN_TYPE = 2
 } ReturnType;
 
 typedef enum {
-	IS_STRING = 0,
-	IS_SOME_OBJECT = 1
-} VariableContext;
+	VARIABLE_TYPE = 1,
+	STRING_TYPE = 3,
+	OBJECT_TYPE = 4,
+} Type;
 
 typedef struct {
 	string_t *name;
@@ -66,10 +56,10 @@ typedef struct {
 // Memory management
 typedef struct VariableManager {
 	Variable **items;
+	int itemsLength, itemsAllocatedLength;
 
-	// Counters
-	int itemsLength;
-	int itemsAllocatedLength;
+	te_variable **vars;
+	int varsLength, varsAllocatedLength;
 
 	int gcIndex; // If garbage collection reaches index 10, then index will be reset & garbage collection
 } VariableManager; // This is for global varialbe manager, a local one will be implemented later
@@ -86,7 +76,5 @@ void varmanager_removevariable(string_t *reference,
 Variable* varmanager_parsevariable(string_t *reference,
 		VariableManager *manager);
 void varmanager_free(VariableManager *manager);
-
-VariableContext getVariableContext(string_t *token);
 
 #endif /* SRC_GC_H_ */

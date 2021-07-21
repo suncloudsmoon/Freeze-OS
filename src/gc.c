@@ -31,13 +31,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "gc.h"
-#include "vm.h"
-#include "stringobj.h"
+#include "../include/gc.h"
+#include "../include/vm.h"
+#include "../include/stringobj.h"
 
 Variable* var_init() {
-	Variable *var = (Variable*) safe_calloc(1, sizeof(Variable));
-	return var;
+	return (Variable*) safe_calloc(1, sizeof(Variable));
 }
 
 void var_free(Variable *var) {
@@ -50,9 +49,18 @@ void var_free(Variable *var) {
 VariableManager* varmanager_init() {
 	VariableManager *manager = (VariableManager*) safe_calloc(1,
 			sizeof(VariableManager));
-	manager->items = (Variable**) safe_calloc(10, sizeof(Variable*));
-	manager->itemsAllocatedLength = 10;
-	manager->itemsLength = 0;
+
+	// Variables Allocation
+	manager->items = (Variable**) safe_calloc(MANAGER_ALLOC_SIZE,
+			sizeof(Variable*));
+	manager->itemsAllocatedLength = MANAGER_ALLOC_SIZE;
+
+	// Math Engine Vars Allocation
+	manager->vars = (te_variable**) safe_calloc(MANAGER_ALLOC_SIZE,
+			sizeof(te_variable*));
+	manager->varsAllocatedLength = MANAGER_ALLOC_SIZE;
+
+	// Garbage Collection Indicators
 	manager->gcIndex = 0;
 
 	return manager;
@@ -61,11 +69,30 @@ VariableManager* varmanager_init() {
 // reference is the name of the variable
 void varmanager_addvariable(string_t *reference, void *data, Type type,
 		VariableManager *manager) {
+	// Actual Variable Items Collector
+	if (manager->itemsLength >= manager->itemsAllocatedLength) {
+		// Is this safe?
+		manager->items = (Variable **) safe_realloc(manager->items, MANAGER_ALLOC_SIZE * sizeof(Variable *));
+		manager->itemsAllocatedLength += MANAGER_ALLOC_SIZE;
+	}
+	manager->items[manager->itemsLength] = var_init();
+	manager->items[manager->itemsLength]->name = reference;
+	manager->items[manager->itemsLength]->data = data;
+	manager->items[manager->itemsLength]->type = type;
 	manager->itemsLength++;
-	manager->items[manager->itemsLength - 1] = var_init();
-	manager->items[manager->itemsLength - 1]->name = reference;
-	manager->items[manager->itemsLength - 1]->data = data;
-	manager->items[manager->itemsLength - 1]->type = type;
+
+	// Add that variable to the math engine
+	if (type == VARIABLE_TYPE) {
+		if (manager->varsLength >= manager->varsAllocatedLength) {
+			manager->vars = (te_variable **) safe_realloc(manager->vars, MANAGER_ALLOC_SIZE * sizeof(te_variable));
+			manager->varsAllocatedLength += MANAGER_ALLOC_SIZE;
+		}
+		manager->vars[manager->varsLength] = (te_variable *) safe_calloc(1, sizeof(te_variable));
+		manager->vars[manager->varsLength]->name = reference->string;
+		manager->vars[manager->varsLength]->address = data;
+		manager->varsLength++;
+	}
+
 }
 
 // Removes a variable from memory
@@ -92,6 +119,3 @@ void varmanager_free(VariableManager *manager) {
 		var_free(manager->items[i]);
 }
 
-VariableContext getVariableContext(string_t *token) {
-	return string_contains("\"", token) ? IS_STRING : IS_SOME_OBJECT;
-}

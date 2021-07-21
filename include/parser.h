@@ -21,15 +21,28 @@
  */
 
 /*
- * bytecode.h
+ * parser.h
  *
- *  Created on: Jul 4, 2021
+ *  Created on: Jul 18, 2021
  *      Author: suncloudsmoon
  */
 
-#ifndef SRC_BYTECODE_H_
-#define SRC_BYTECODE_H_
+#ifndef SRC_PARSER_H_
+#define SRC_PARSER_H_
 
-#include <stdbool.h> // maybe?
+#include "stringobj.h"
+#include "vm.h"
 
-#endif /* SRC_BYTECODE_H_ */
+// I think you can free this directly
+typedef struct {
+	void *data;
+	Type type;
+
+	bool isInGC; // Whether the variable is in garbage collection
+} parsed_arg_context_t;
+
+LineInfo* parse(string_t *line, VirtualMachine *vm);
+parsed_arg_context_t* parse_arg(string_t *arg, VirtualMachine *vm);
+string_t* parse_remove_quotes(string_t *data);
+
+#endif /* SRC_PARSER_H_ */

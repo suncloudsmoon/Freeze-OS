@@ -26,15 +26,16 @@
 
 #include <string.h>
 
-#include "test.h"
-#include "vm.h"
-#include "interpreter.h"
+#include "../include/test.h"
+#include "../include/vm.h"
+#include "../include/interpreter.h"
 
 void testeverything();
 
 // What do the arguments mean exactly?
 int main(int argc, char **argv) {
-	const char *defaultTest = "experiments\\Test #1.fz";
+
+	const char *defaultTest = "test\\Test #1.fz";
 
 	FILE *test = stdin;
 

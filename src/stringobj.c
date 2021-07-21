@@ -28,9 +28,9 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "stringobj.h"
-#include "safedefault.h"
-#include "vm.h"
+#include "../include/stringobj.h"
+#include "../include/safedefault.h"
+#include "../include/vm.h"
 
 #define ALLOC_FACTOR 16
 
@@ -50,7 +50,7 @@ string_t* string_init() {
 	string->length = 0; // I don't know if this is necessary
 	string->allocatedLength = ALLOC_FACTOR;
 
-	safe_strncpy(string->string, string->allocatedLength, "", 1);
+	safe_strncpy(string->string, "", string->allocatedLength);
 
 	return string;
 }
@@ -118,7 +118,7 @@ void string_concat(char *text, string_t *story) {
 				- (story->allocatedLength)+ ALLOC_FACTOR;
 		growMem(numAdd, story);
 	}
-	safe_strncat(story->string, story->allocatedLength, text, textLength);
+	safe_strncat(story->string, text, story->allocatedLength, textLength);
 	story->length += textLength;
 }
 
@@ -139,7 +139,7 @@ void string_concat_c(char letter, string_t *story) {
 	temp[0] = letter;
 	temp[1] = '\0';
 
-	safe_strncat(story->string, story->allocatedLength, temp, 1);
+	safe_strncat(story->string, temp, story->allocatedLength, 1);
 	story->length++;
 }
 
@@ -357,7 +357,7 @@ static void growMem(int howMuch, string_t *mem) {
 	int numAdd = mem->allocatedLength + howMuch;
 	char *newStr = (char*) safe_calloc(numAdd, sizeof(char));
 
-	safe_strncpy(newStr, numAdd, mem->string, mem->length);
+	safe_strncpy(newStr, mem->string, numAdd);
 	free(mem->string);
 
 	mem->string = newStr; // I think this will create a memory leak
